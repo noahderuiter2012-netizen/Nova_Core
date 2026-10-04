@@ -3,155 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Nova AI</title>
 
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background: #111827;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background:
+                radial-gradient(circle at 50% 20%, #12345a 0%, #07111f 35%, #02060c 75%);
+            color: white;
+            overflow: hidden;
         }
 
-        .nova {
-            width: 90%;
-            max-width: 600px;
-            background: #1f2937;
-            padding: 25px;
-            border-radius: 20px;
-        }
-
-        #messages {
-            height: 350px;
-            overflow-y: auto;
-            background: #111827;
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 15px;
-        }
-
-        .message {
-            margin: 10px 0;
-        }
-
-        .user {
-            color: #60a5fa;
-        }
-
-        .nova-message {
-            color: #34d399;
-        }
-
-        .input-row {
+        .app {
+            min-height: 100vh;
             display: flex;
-            gap: 10px;
+            flex-direction: column;
         }
 
-        input {
-            flex: 1;
-            padding: 12px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
+        /* TOP BAR */
+
+        .topbar {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            background: rgba(5, 15, 28, 0.65);
+            border-bottom: 1px solid rgba(80, 180, 255, 0.15);
+            backdrop-filter: blur(20px);
         }
 
-        button {
-            padding: 12px 18px;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
             font-weight: bold;
         }
-    </style>
-</head>
 
-<body>
-
-<div class="nova">
-    <h1>🤖 Nova</h1>
-
-    <div id="messages">
-        <div class="message nova-message">
-            Nova: Hello! Nova Core is online.
-        </div>
-    </div>
-
-    <div class="input-row">
-        <input
-            id="messageInput"
-            type="text"
-            placeholder="Talk to Nova..."
-        >
-
-        <button id="sendButton" type="button">
-            Send
-        </button>
-    </div>
-</div>
-
-<script>
-const input = document.getElementById("messageInput");
-const button = document.getElementById("sendButton");
-const messages = document.getElementById("messages");
-
-async function sendMessage() {
-    const text = input.value.trim();
-
-    if (!text) return;
-
-    messages.innerHTML += `
-        <div class="message user">
-            You: ${text}
-        </div>
-    `;
-
-    input.value = "";
-
-    try {
-        const response = await fetch("/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                message: text
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error("Server error");
+        .logo {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle, #ffffff 0%, #6ee7ff 15%, #168cff 45%, #071a35 75%);
+            box-shadow:
+                0 0 15px #168cff,
+                0 0 35px rgba(22, 140, 255, 0.6);
         }
 
-        const data = await response.json();
+        .status {
+            font-size: 13px;
+            color: #6ee7ff;
+        }
 
-        messages.innerHTML += `
-            <div class="message nova-message">
-                Nova: ${data.reply}
-            </div>
-        `;
-    } catch (error) {
-        messages.innerHTML += `
-            <div class="message nova-message">
-                Nova: Connection error.
-            </div>
-        `;
-    }
+        /* MAIN */
 
-    messages.scrollTop = messages.scrollHeight;
-}
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
 
-button.addEventListener("click", sendMessage);
+        /* NOVA CORE */
 
-input.addEventListener("keydown", function(event) {
-    if (event.key === "Enter") {
-        sendMessage();
-    }
-});
-</script>
+        .nova-core {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            position: relative;
+            margin-bottom: 30px;
 
-</body>
-</html>
+            background:
+                radial-gradient(
+                    circle,
+                    #ffffff 0%,
+                    #8be9ff 8%,
+                    #168cff 30%,
+                    #092b55 55%,
+                    #020b18 75%
+                );
+
+            box-shadow:
+                0 0 25px #168cff,
+                0 0 60px rgba(22, 140, 255, 0.65),
+                0 0 120px rgba(22, 140, 255, 0.3);
+
+            animation: pulse 3s infinite ease-in-out;
+        }
+
+        .nova-core::before,
+        .nova-core::after {
+            content: "";
+            position: absolute;
+            inset: -18px;
+            border: 1px solid rgba(80, 200, 255, 0.35);
+            border-radius: 50%;
+            animation: rotate 8s linear infinite;
+        }
+
+        .
