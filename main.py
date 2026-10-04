@@ -64,7 +64,30 @@ def developer_page(
     x_developer_key: str | None = Header(default=None)
 ):
     require_developer
-
-@app.get("/developer-login")
+    @app.get("/developer-login")
 def developer_login():
     return FileResponse("developer-login.html")
+    @app.post("/chat")
+def chat(data: ChatMessage):
+
+    response = client.chat.completions.create(
+        model="Qwen/Qwen3-4B-Instruct-2507",
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are Nova, a helpful personal AI assistant. "
+                    "Answer clearly, accurately, and concisely."
+                )
+            },
+            {
+                "role": "user",
+                "content": data.message
+            }
+        ],
+        max_tokens=300
+    )
+
+    return {
+        "reply": response.choices[0].message.content
+    }
