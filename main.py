@@ -2,8 +2,8 @@ import os
 import secrets
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from openai import OpenAI
 
@@ -18,15 +18,17 @@ DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
 ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 
 
-def require_access(x_nova_key: Optional[str]):
+def require_access(request: Request):
     if not ACCESS_KEY:
         raise HTTPException(
             status_code=500,
             detail="Nova access is not configured."
         )
 
-    if not x_nova_key or not secrets.compare_digest(
-        x_nova_key,
+    session_key = request.cookies.get("nova_access")
+
+    if not session_key or not secrets.compare_digest(
+        session_key,
         ACCESS_KEY
     ):
         raise HTTPException(
@@ -74,23 +76,44 @@ def authenticate(data: AccessRequest):
             detail="Nova access is not configured."
         )
 
-    if not secrets.compare_digest(data.key, ACCESS_KEY):
+    if not secrets.compare_digest(
+        data.key,
+        ACCESS_KEY
+    ):
         raise HTTPException(
             status_code=401,
             detail="Invalid access key."
         )
 
-    return {
-        "authenticated": True
-    }
+    response = RedirectResponse(
+        url="/",
+        status_code=303
+    )
+
+    response.set_cookie(
+        key="nova_access",
+        value=ACCESS_KEY,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=604800
+    )
+
+    return response
 
 
 @app.get("/")
-def home(
-    x_nova_key: Optional[str] = Header(default=None)
-):
-    require_access(x_nova_key)
-    return FileResponse("index.html")
+def home(request: Request):
+
+    try:
+        require_access(request)
+        return FileResponse("index.html")
+
+    except HTTPException:
+        return RedirectResponse(
+            url="/login",
+            status_code=303
+        )
 
 
 @app.get("/developer-login")
@@ -109,10 +132,10 @@ def developer_page(
 @app.post("/chat")
 def chat(
     data: ChatMessage,
-    x_nova_key: Optional[str] = Header(default=None)
+    request: Request
 ):
 
-    require_access(x_nova_key)
+    require_access(request)
 
     response = client.chat.completions.create(
         model="Qwen/Qwen3-4B-Instruct-2507",
