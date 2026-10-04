@@ -268,14 +268,13 @@ async function sendMessage() {
     try {
 
         const response = await fetch("/chat", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                message: text
-            })
-        });
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "X-Nova-Key": sessionStorage.getItem("novaAccessKey")
+    },
+    body: JSON.stringify({message: text})
+});
 
         if (!response.ok) {
             throw new Error("Server error");
