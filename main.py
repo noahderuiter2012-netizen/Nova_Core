@@ -54,6 +54,12 @@ class ChatMessage(BaseModel):
 @app.get("/")
 def home():
     return FileResponse("index.html")
+    @app.get("/developer")
+def developer_page(
+    x_developer_key: str | None = Header(default=None)
+):
+    require_developer(x_developer_key)
+    return FileResponse("developer.html")
 
 # -------------------------
 # Normal chat
