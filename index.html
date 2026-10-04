@@ -92,7 +92,50 @@
 </div>
 
 <script>
-function sendMessage() {
+async function sendMessage() {
+    const input = document.getElementById("messageInput");
+    const messages = document.getElementById("messages");
+
+    const text = input.value.trim();
+
+    if (!text) return;
+
+    messages.innerHTML += `
+        <div class="message user">
+            You: ${text}
+        </div>
+    `;
+
+    input.value = "";
+
+    try {
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: text
+            })
+        });
+
+        const data = await response.json();
+
+        messages.innerHTML += `
+            <div class="message nova-message">
+                Nova: ${data.reply}
+            </div>
+        `;
+    } catch (error) {
+        messages.innerHTML += `
+            <div class="message nova-message">
+                Nova: Connection error.
+            </div>
+        `;
+    }
+
+    messages.scrollTop = messages.scrollHeight;
+}
     const input = document.getElementById("messageInput");
     const messages = document.getElementById("messages");
 
