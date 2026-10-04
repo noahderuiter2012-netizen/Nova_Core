@@ -15,6 +15,24 @@ client = OpenAI(
 )
 
 DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
+ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
+
+
+def require_access(x_nova_key: Optional[str]):
+    if not ACCESS_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Nova access is not configured."
+        )
+
+    if not x_nova_key or not secrets.compare_digest(
+        x_nova_key,
+        ACCESS_KEY
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Nova access required."
+        )
 
 
 def require_developer(x_developer_key: Optional[str]):
@@ -38,8 +56,40 @@ class ChatMessage(BaseModel):
     message: str
 
 
+class AccessRequest(BaseModel):
+    key: str
+
+
+@app.get("/login")
+def login_page():
+    return FileResponse("login.html")
+
+
+@app.post("/auth")
+def authenticate(data: AccessRequest):
+
+    if not ACCESS_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Nova access is not configured."
+        )
+
+    if not secrets.compare_digest(data.key, ACCESS_KEY):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid access key."
+        )
+
+    return {
+        "authenticated": True
+    }
+
+
 @app.get("/")
-def home():
+def home(
+    x_nova_key: Optional[str] = Header(default=None)
+):
+    require_access(x_nova_key)
     return FileResponse("index.html")
 
 
@@ -57,7 +107,13 @@ def developer_page(
 
 
 @app.post("/chat")
-def chat(data: ChatMessage):
+def chat(
+    data: ChatMessage,
+    x_nova_key: Optional[str] = Header(default=None)
+):
+
+    require_access(x_nova_key)
+
     response = client.chat.completions.create(
         model="Qwen/Qwen3-4B-Instruct-2507",
         messages=[
@@ -85,6 +141,7 @@ def chat(data: ChatMessage):
 def developer_status(
     x_developer_key: Optional[str] = Header(default=None)
 ):
+
     require_developer(x_developer_key)
 
     return {
