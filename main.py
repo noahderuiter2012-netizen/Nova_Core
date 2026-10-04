@@ -26,7 +26,7 @@ def home():
 def chat(data: ChatMessage):
 
     response = client.chat.completions.create(
-        model="Qwen/Qwen2.5-7B-Instruct",
+        model="Qwen/Qwen3-4B-Instruct-2507",
         messages=[
             {
                 "role": "system",
