@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nova — Private Access</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: Arial, sans-serif;
+            color: white;
+            background:
+                radial-gradient(
+                    circle at 50% 25%,
+                    rgba(0, 150, 255, 0.35),
+                    transparent 40%
+                ),
+                #020812;
+        }
+
+        .login {
+            width: 90%;
+            max-width: 400px;
+            padding: 30px;
+            text-align: center;
+            border-radius: 22px;
+
+            background: rgba(8, 25, 45, 0.85);
+            border: 1px solid rgba(80, 190, 255, 0.25);
+
+            box-shadow:
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(0, 150, 255, 0.15);
+
+            backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            width: 85px;
+            height: 85px;
+            margin: 0 auto 20px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle,
+                    white 0%,
+                    #6ee7ff 20%,
+                    #168cff 55%,
+                    #062047 100%
+                );
+
+            box-shadow:
+                0 0 20px #168cff,
+                0 0 55px rgba(0, 150, 255, 0.6);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        p {
+            color: #91a9c2;
+        }
+
+        input {
+            width: 100%;
+            margin-top: 15px;
+            padding: 14px;
+
+            border-radius: 12px;
+            border: 1px solid rgba(80, 190, 255, 0.25);
+
+            background: #020b16;
+            color: white;
+
+            font-size: 16px;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 12px;
+            padding: 14px;
+
+            border: none;
+            border-radius: 12px;
+
+            background: #168cff;
+            color: white;
+
+            font-weight: bold;
+            font-size: 15px;
+
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.15);
+        }
+
+        #error {
+            display: none;
+            margin-top: 15px;
+            color: #ff7777;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login">
+
+    <div class="logo"></div>
+
+    <h1>Welcome back.</h1>
+
+    <p>Nova is private and available only to you.</p>
+
+    <input
+        id="key"
+        type="password"
+        placeholder="Enter your Nova access key"
+    >
+
+    <button onclick="login()">
+        Enter Nova
+    </button>
+
+    <div id="error">
+        Access denied.
+    </div>
+
+</div>
+
+<script>
+
+async function login() {
+
+    const key = document.getElementById("key").value;
+    const error = document.getElementById("error");
+
+    error.style.display = "none";
+
+    if (!key) {
+        error.textContent = "Enter your access key.";
+        error.style.display = "block";
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/auth", {
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                key: key
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error("Unauthorized");
+        }
+
+        sessionStorage.setItem("novaAccessKey", key);
+
+        window.location.href = "/";
+
+    } catch (error) {
+
+        error.textContent = "Access denied.";
+        error.style.display = "block";
+
+    }
+}
+
+</script>
+
+</body>
+</html>
