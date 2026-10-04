@@ -23,11 +23,6 @@
             background: #1f2937;
             padding: 25px;
             border-radius: 20px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-        }
-
-        h1 {
-            margin-top: 0;
         }
 
         #messages {
@@ -86,16 +81,24 @@
     </div>
 
     <div class="input-row">
-        <input id="messageInput" placeholder="Talk to Nova...">
-        <button onclick="sendMessage()">Send</button>
+        <input
+            id="messageInput"
+            type="text"
+            placeholder="Talk to Nova..."
+        >
+
+        <button id="sendButton" type="button">
+            Send
+        </button>
     </div>
 </div>
 
 <script>
-async function sendMessage() {
-    const input = document.getElementById("messageInput");
-    const messages = document.getElementById("messages");
+const input = document.getElementById("messageInput");
+const button = document.getElementById("sendButton");
+const messages = document.getElementById("messages");
 
+async function sendMessage() {
     const text = input.value.trim();
 
     if (!text) return;
@@ -119,6 +122,10 @@ async function sendMessage() {
             })
         });
 
+        if (!response.ok) {
+            throw new Error("Server error");
+        }
+
         const data = await response.json();
 
         messages.innerHTML += `
@@ -136,29 +143,14 @@ async function sendMessage() {
 
     messages.scrollTop = messages.scrollHeight;
 }
-    const input = document.getElementById("messageInput");
-    const messages = document.getElementById("messages");
 
-    const text = input.value.trim();
+button.addEventListener("click", sendMessage);
 
-    if (!text) return;
-
-    messages.innerHTML += `
-        <div class="message user">
-            You: ${text}
-        </div>
-    `;
-
-    input.value = "";
-
-    messages.innerHTML += `
-        <div class="message nova-message">
-            Nova: I received your message.
-        </div>
-    `;
-
-    messages.scrollTop = messages.scrollHeight;
-}
+input.addEventListener("keydown", function(event) {
+    if (event.key === "Enter") {
+        sendMessage();
+    }
+});
 </script>
 
 </body>
