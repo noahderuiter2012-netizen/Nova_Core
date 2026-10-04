@@ -6,14 +6,23 @@ from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from openai import OpenAI
+from supabase import create_client, Client
 
 app = FastAPI(title="Nova Core")
 
+# AI
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
     api_key=os.environ.get("HF_TOKEN")
 )
 
+# Supabase memory
+supabase: Client = create_client(
+    os.environ.get("SUPABASE_URL"),
+    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+)
+
+# Authentication
 DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
 ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 
@@ -60,6 +69,35 @@ class ChatMessage(BaseModel):
 
 class AccessRequest(BaseModel):
     key: str
+
+
+def get_noah_memory():
+    result = (
+        supabase
+        .table("nova_memory")
+        .select("memory_key, memory_value")
+        .eq("user_id", "noah")
+        .execute()
+    )
+
+    return result.data
+
+
+def ensure_noah_identity():
+    existing = get_noah_memory()
+
+    for memory in existing:
+        if (
+            memory["memory_key"] == "name"
+            and memory["memory_value"] == "Noah"
+        ):
+            return
+
+    supabase.table("nova_memory").insert({
+        "user_id": "noah",
+        "memory_key": "name",
+        "memory_value": "Noah"
+    }).execute()
 
 
 @app.get("/login")
@@ -137,15 +175,36 @@ def chat(
 
     require_access(request)
 
+    # Make sure Nova knows who Noah is
+    ensure_noah_identity()
+
+    memories = get_noah_memory()
+
+    memory_text = "\n".join(
+        f"- {memory['memory_key']}: {memory['memory_value']}"
+        for memory in memories
+    )
+
+    system_prompt = f"""
+You are Nova, Noah's personal AI assistant.
+
+You know that the person you are talking to is Noah.
+
+Persistent memory:
+{memory_text}
+
+Use this memory naturally when relevant.
+Call the user Noah when appropriate.
+
+Answer clearly, accurately, and helpfully.
+"""
+
     response = client.chat.completions.create(
         model="Qwen/Qwen3-4B-Instruct-2507",
         messages=[
             {
                 "role": "system",
-                "content": (
-                    "You are Nova, a helpful personal AI assistant. "
-                    "Answer clearly, accurately, and concisely."
-                )
+                "content": system_prompt
             },
             {
                 "role": "user",
