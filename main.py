@@ -64,3 +64,7 @@ def developer_page(
     x_developer_key: str | None = Header(default=None)
 ):
     require_developer
+
+@app.get("/developer-login")
+def developer_login():
+    return FileResponse("developer-login.html")
