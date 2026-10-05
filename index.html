@@ -177,18 +177,116 @@ body {
     margin-top: -20px;
 }
 
-.core {
-    width: 145px;
-    height: 145px;
+..core {
+    width: 150px;
+    height: 150px;
     border-radius: 50%;
     position: relative;
+    overflow: hidden;
+
     background:
-        radial-gradient(circle at 32% 28%,
-            #d9fbff 0%,
-            #5cecff 9%,
-            #087cff 38%,
-            #052f82 68%,
-            #01091c 100%);
+        radial-gradient(
+            circle at 32% 25%,
+            rgba(225, 252, 255, 0.98) 0%,
+            rgba(80, 224, 255, 0.95) 8%,
+            rgba(16, 117, 255, 0.95) 34%,
+            rgba(4, 47, 125, 0.98) 68%,
+            rgba(1, 8, 25, 1) 100%
+        );
+
+    border: 1px solid rgba(150, 240, 255, 0.75);
+
+    box-shadow:
+        inset -18px -20px 35px rgba(0, 5, 30, 0.85),
+        inset 15px 12px 28px rgba(160, 245, 255, 0.35),
+        0 0 25px rgba(0, 210, 255, 0.95),
+        0 0 65px rgba(0, 105, 255, 0.65),
+        0 0 120px rgba(0, 80, 255, 0.28);
+
+    animation: float 4s ease-in-out infinite;
+
+    z-index: 3;
+}
+
+/* Flowing energy inside Nova */
+
+.core::before {
+    content: "";
+    position: absolute;
+
+    width: 190px;
+    height: 58px;
+
+    left: -20px;
+    top: 48px;
+
+    border-radius: 50%;
+
+    background:
+        linear-gradient(
+            90deg,
+            transparent,
+            rgba(0, 225, 255, 0.85),
+            rgba(180, 250, 255, 0.95),
+            rgba(0, 150, 255, 0.85),
+            transparent
+        );
+
+    filter: blur(5px);
+
+    transform:
+        rotate(-18deg)
+        skewX(-12deg);
+
+    opacity: 0.9;
+
+    animation: energyFlow 3s ease-in-out infinite;
+}
+
+/* Inner secondary energy layer */
+
+.core::after {
+    content: "";
+
+    position: absolute;
+
+    width: 175px;
+    height: 42px;
+
+    left: -12px;
+    top: 76px;
+
+    border-radius: 50%;
+
+    border-top: 2px solid rgba(120, 245, 255, 0.9);
+
+    filter: blur(2px);
+
+    transform: rotate(-18deg);
+
+    opacity: 0.7;
+
+    animation: energyFlow 2.4s ease-in-out infinite reverse;
+}
+
+@keyframes energyFlow {
+
+    0%, 100% {
+        transform:
+            translateX(-12px)
+            rotate(-18deg)
+            scaleX(0.95);
+        opacity: 0.55;
+    }
+
+    50% {
+        transform:
+            translateX(12px)
+            rotate(-18deg)
+            scaleX(1.08);
+        opacity: 1;
+    }
+}
     box-shadow:
         0 0 25px #00cfff,
         0 0 65px rgba(0, 120, 255, .8),
