@@ -62,6 +62,7 @@ def require_developer(x_developer_key: Optional[str]):
             detail="Developer access required."
         )
 
+
 def nova_plan(message: str) -> str:
     text = message.lower()
 
@@ -99,7 +100,7 @@ def nova_plan(message: str) -> str:
     ]):
         return "timer"
 
-        return "chat"
+    return "chat"
 
 
 def nova_execute(plan: str, message: str):
@@ -132,14 +133,24 @@ def nova_calculate(expression: str):
         if not cleaned:
             return "I couldn't find a calculation."
 
-        result = eval(cleaned, {"__builtins__": {}}, {})
+        result = eval(
+            cleaned,
+            {"__builtins__": {}},
+            {}
+        )
+
         return str(result)
 
     except Exception:
         return "I couldn't calculate that."
 
+
 class ChatMessage(BaseModel):
     message: str
+
+
+class AccessRequest(BaseModel):
+    key: str
 
 
 def get_noah_memory():
@@ -245,18 +256,19 @@ def chat(
 ):
 
     require_access(request)
+
     plan = nova_plan(data.message)
-tool = nova_execute(plan, data.message)
+    tool = nova_execute(plan, data.message)
 
-if tool == "calculator":
-    result = nova_calculate(data.message)
+    if tool == "calculator":
+        result = nova_calculate(data.message)
 
-    return {
-        "reply": f"The result is {result}."
-    }
+        return {
+            "reply": f"The result is {result}."
+        }
 
-# Make sure Nova knows who Noah is
-ensure_noah_identity()
+    # Make sure Nova knows who Noah is
+    ensure_noah_identity()
 
     memories = get_noah_memory()
 
@@ -266,10 +278,11 @@ ensure_noah_identity()
     )
 
     system_prompt = f"""
-    Current task plan:
+Current task plan:
 {plan}
 
 Use this plan to decide how to handle Noah's request.
+
 You are Nova, Noah's personal AI assistant.
 
 PERSONALITY:
