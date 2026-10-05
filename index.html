@@ -15,11 +15,7 @@ body {
     margin: 0;
     min-height: 100vh;
     background:
-        radial-gradient(
-            circle at 50% 38%,
-            rgba(0,120,255,.18),
-            transparent 32%
-        ),
+        radial-gradient(circle at 50% 38%, rgba(0,120,255,.18), transparent 32%),
         #020711;
     color: white;
     font-family: Arial, sans-serif;
@@ -30,8 +26,6 @@ body {
     min-height: 100vh;
     display: flex;
 }
-
-/* SIDEBAR */
 
 .sidebar {
     width: 220px;
@@ -95,8 +89,6 @@ body {
     margin-top: 4px;
 }
 
-/* MAIN */
-
 .main {
     flex: 1;
     display: flex;
@@ -128,8 +120,6 @@ body {
     box-shadow: 0 0 12px #2dff9b;
 }
 
-/* WORKSPACE */
-
 .workspace {
     flex: 1;
     display: flex;
@@ -137,8 +127,6 @@ body {
     align-items: center;
     justify-content: center;
 }
-
-/* NOVA CORE */
 
 .core-container {
     width: 300px;
@@ -177,20 +165,16 @@ body {
         0 0 70px rgba(0,110,255,.55),
         0 0 120px rgba(0,80,255,.25);
 
-    animation:
-        float 4s ease-in-out infinite;
+    animation: float 4s ease-in-out infinite;
 }
 
 .core::before {
     content: "";
     position: absolute;
-
     width: 180px;
     height: 42px;
-
     left: -18px;
     top: 55px;
-
     border-radius: 50%;
 
     background:
@@ -204,34 +188,22 @@ body {
         );
 
     filter: blur(7px);
-
     transform: rotate(-18deg);
-
-    animation:
-        energy 3s ease-in-out infinite;
+    animation: energy 3s ease-in-out infinite;
 }
 
 .core::after {
     content: "";
-
     position: absolute;
-
     width: 55px;
     height: 30px;
-
     left: 30px;
     top: 20px;
-
     border-radius: 50%;
-
     background: rgba(235,255,255,.45);
-
     filter: blur(9px);
-
     transform: rotate(-25deg);
 }
-
-/* RINGS */
 
 .ring {
     position: absolute;
@@ -242,42 +214,29 @@ body {
 .ring.one {
     width: 205px;
     height: 205px;
-
     border-left-color: transparent;
     border-bottom-color: transparent;
-
-    animation:
-        rotate 10s linear infinite;
+    animation: rotate 10s linear infinite;
 }
 
 .ring.two {
     width: 250px;
     height: 250px;
-
     border-right-color: transparent;
     border-top-color: transparent;
-
-    animation:
-        rotateReverse 13s linear infinite;
+    animation: rotateReverse 13s linear infinite;
 }
 
 .ring.three {
     width: 285px;
     height: 285px;
-
     border-left-color: transparent;
     border-right-color: transparent;
-
     opacity: .35;
-
-    animation:
-        rotate 18s linear infinite;
+    animation: rotate 18s linear infinite;
 }
 
-/* THINKING MODE */
-
 .core-container.thinking .core {
-
     animation:
         thinkPulse 1s ease-in-out infinite alternate,
         float 2.5s ease-in-out infinite;
@@ -302,10 +261,7 @@ body {
     animation-duration: 5s;
 }
 
-/* ANIMATIONS */
-
 @keyframes float {
-
     0%,100% {
         transform: translateY(0);
     }
@@ -316,7 +272,6 @@ body {
 }
 
 @keyframes rotate {
-
     from {
         transform: rotate(0deg);
     }
@@ -327,7 +282,6 @@ body {
 }
 
 @keyframes rotateReverse {
-
     from {
         transform: rotate(360deg);
     }
@@ -338,22 +292,16 @@ body {
 }
 
 @keyframes energy {
-
     0%,100% {
-        transform:
-            translateX(-8px)
-            rotate(-18deg);
+        transform: translateX(-8px) rotate(-18deg);
     }
 
     50% {
-        transform:
-            translateX(8px)
-            rotate(-18deg);
+        transform: translateX(8px) rotate(-18deg);
     }
 }
 
 @keyframes thinkPulse {
-
     from {
         transform: scale(.92);
     }
@@ -362,8 +310,6 @@ body {
         transform: scale(1.08);
     }
 }
-
-/* GREETING */
 
 .greeting {
     text-align: center;
@@ -377,8 +323,7 @@ body {
 
 .greeting h1 span {
     color: #159cff;
-    text-shadow:
-        0 0 15px rgba(0,150,255,.6);
+    text-shadow: 0 0 15px rgba(0,150,255,.6);
 }
 
 .greeting p {
@@ -386,28 +331,24 @@ body {
     color: #8194ad;
 }
 
-/* CHAT */
-
 .chat-area {
     width: min(750px, 90%);
 }
 
 .input {
     display: flex;
-    gap: 10px;
+    align-items: center;
+    gap: 6px;
 
     padding: 8px;
 
     border-radius: 30px;
 
-    border:
-        1px solid rgba(0,157,255,.65);
+    border: 1px solid rgba(0,157,255,.65);
 
-    background:
-        rgba(3,17,36,.9);
+    background: rgba(3,17,36,.9);
 
-    box-shadow:
-        0 0 25px rgba(0,105,255,.12);
+    box-shadow: 0 0 25px rgba(0,105,255,.12);
 }
 
 input {
@@ -430,20 +371,45 @@ input::placeholder {
     color: #71859f;
 }
 
+.icon-button {
+    width: 42px;
+    height: 42px;
+
+    flex-shrink: 0;
+
+    border: none;
+    border-radius: 50%;
+
+    background: transparent;
+
+    color: #91a9c5;
+
+    font-size: 18px;
+
+    cursor: pointer;
+}
+
+.icon-button:hover {
+    color: white;
+    background: rgba(0,120,255,.15);
+}
+
+.icon-button.listening {
+    color: #00d9ff;
+    background: rgba(0,150,255,.2);
+    box-shadow: 0 0 18px rgba(0,200,255,.45);
+}
+
 button.send {
     width: 46px;
     height: 46px;
 
-    border: none;
+    flex-shrink: 0;
 
+    border: none;
     border-radius: 50%;
 
-    background:
-        linear-gradient(
-            145deg,
-            #28a7ff,
-            #006eea
-        );
+    background: linear-gradient(145deg,#28a7ff,#006eea);
 
     color: white;
 
@@ -451,8 +417,7 @@ button.send {
 
     cursor: pointer;
 
-    box-shadow:
-        0 0 20px rgba(0,135,255,.5);
+    box-shadow: 0 0 20px rgba(0,135,255,.5);
 }
 
 button.send:active {
@@ -464,19 +429,34 @@ button.send:disabled {
     cursor: default;
 }
 
+.voice-status {
+    height: 24px;
+    margin-top: 8px;
+
+    text-align: center;
+
+    color: #7f9ab7;
+
+    font-size: 12px;
+
+    opacity: 0;
+
+    transition: opacity .2s;
+}
+
+.voice-status.visible {
+    opacity: 1;
+}
+
 #result {
-
-    margin-top: 15px;
-
+    margin-top: 8px;
     padding: 18px;
 
     border-radius: 15px;
 
-    background:
-        rgba(3,15,30,.75);
+    background: rgba(3,15,30,.75);
 
-    border:
-        1px solid rgba(0,140,255,.15);
+    border: 1px solid rgba(0,140,255,.15);
 
     color: #dce9f8;
 
@@ -487,11 +467,8 @@ button.send:disabled {
     display: none;
 
     max-height: 180px;
-
     overflow-y: auto;
 }
-
-/* MOBILE */
 
 @media (max-width: 700px) {
 
@@ -504,11 +481,8 @@ button.send:disabled {
     }
 
     .core-container {
-
         transform: scale(.78);
-
         margin-top: -30px;
-
         margin-bottom: -35px;
     }
 
@@ -589,9 +563,7 @@ button.send:disabled {
             >
 
                 <div class="ring one"></div>
-
                 <div class="ring two"></div>
-
                 <div class="ring three"></div>
 
                 <div class="core"></div>
@@ -614,6 +586,15 @@ button.send:disabled {
 
                 <div class="input">
 
+                    <button
+                        id="voiceButton"
+                        class="icon-button"
+                        type="button"
+                        title="Voice input"
+                    >
+                        🎙
+                    </button>
+
                     <input
                         id="message"
                         type="text"
@@ -625,10 +606,18 @@ button.send:disabled {
                         id="send"
                         class="send"
                         type="button"
+                        title="Send"
                     >
                         ↑
                     </button>
 
+                </div>
+
+                <div
+                    id="voiceStatus"
+                    class="voice-status"
+                >
+                    Listening...
                 </div>
 
                 <div id="result"></div>
@@ -655,6 +644,14 @@ const result =
 const coreContainer =
     document.getElementById("coreContainer");
 
+const voiceButton =
+    document.getElementById("voiceButton");
+
+const voiceStatus =
+    document.getElementById("voiceStatus");
+
+
+/* CHAT */
 
 send.addEventListener(
     "click",
@@ -676,8 +673,7 @@ send.addEventListener(
 
         send.disabled = true;
 
-        send.textContent =
-            "...";
+        send.textContent = "...";
 
         coreContainer.classList.add(
             "thinking"
@@ -732,8 +728,7 @@ send.addEventListener(
 
             send.disabled = false;
 
-            send.textContent =
-                "↑";
+            send.textContent = "↑";
 
             coreContainer.classList.remove(
                 "thinking"
@@ -744,18 +739,136 @@ send.addEventListener(
 );
 
 
+/* ENTER KEY */
+
 message.addEventListener(
     "keydown",
     function(event) {
 
         if (event.key === "Enter") {
-
             send.click();
-
         }
 
     }
 );
+
+
+/* VOICE INPUT */
+
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+
+if (!SpeechRecognition) {
+
+    voiceButton.addEventListener(
+        "click",
+        function() {
+
+            result.textContent =
+                "Voice input is not supported by this browser.";
+
+            result.style.display =
+                "block";
+
+        }
+    );
+
+} else {
+
+    const recognition =
+        new SpeechRecognition();
+
+    recognition.lang =
+        "en-US";
+
+    recognition.continuous =
+        false;
+
+    recognition.interimResults =
+        false;
+
+
+    voiceButton.addEventListener(
+        "click",
+        function() {
+
+            try {
+
+                recognition.start();
+
+                voiceButton.classList.add(
+                    "listening"
+                );
+
+                voiceStatus.classList.add(
+                    "visible"
+                );
+
+                result.textContent =
+                    "Nova is listening...";
+
+                result.style.display =
+                    "block";
+
+            } catch (error) {
+
+                console.log(error);
+
+            }
+
+        }
+    );
+
+
+    recognition.onresult =
+        function(event) {
+
+            const transcript =
+                event.results[0][0]
+                    .transcript;
+
+            message.value =
+                transcript;
+
+            result.textContent =
+                "I heard: " +
+                transcript;
+
+            result.style.display =
+                "block";
+
+        };
+
+
+    recognition.onerror =
+        function(event) {
+
+            result.textContent =
+                "Microphone error: " +
+                event.error;
+
+            result.style.display =
+                "block";
+
+        };
+
+
+    recognition.onend =
+        function() {
+
+            voiceButton.classList.remove(
+                "listening"
+            );
+
+            voiceStatus.classList.remove(
+                "visible"
+            );
+
+        };
+
+}
 
 </script>
 
