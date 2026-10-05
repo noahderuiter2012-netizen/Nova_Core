@@ -1,6 +1,8 @@
 import os
 import secrets
+import json
 from typing import Optional
+from urllib.request import Request as URLRequest, urlopen
 
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import FileResponse, RedirectResponse
@@ -9,49 +11,51 @@ from openai import OpenAI
 from supabase import create_client, Client
 
 
-# =========================
-# NOVA APP
-# =========================
+# =========================================================
+# NOVA CORE
+# =========================================================
 
 app = FastAPI(title="Nova Core")
 
 
-# =========================
-# HUGGING FACE AI
-# =========================
+# =========================================================
+# HUGGING FACE
+# =========================================================
+
+HF_TOKEN = os.environ.get("HF_TOKEN")
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
-    api_key=os.environ.get("HF_TOKEN")
+    api_key=HF_TOKEN
 )
 
 
-# =========================
+# =========================================================
 # SUPABASE
-# =========================
+# =========================================================
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
+    "SUPABASE_SERVICE_ROLE_KEY"
+)
 
 supabase: Client = create_client(
-    os.environ.get("SUPABASE_URL"),
-    os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY
 )
 
 
-# =========================
-# KEYS
-# =========================
+# =========================================================
+# SECURITY KEYS
+# =========================================================
 
-DEVELOPER_KEY = os.environ.get(
-    "NOVA_DEVELOPER_KEY"
-)
-
-ACCESS_KEY = os.environ.get(
-    "NOVA_ACCESS_KEY"
-)
+DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
+ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 
 
-# =========================
+# =========================================================
 # ACCESS CONTROL
-# =========================
+# =========================================================
 
 def require_access(request: Request):
 
@@ -107,9 +111,9 @@ def require_developer(
         )
 
 
-# =========================
+# =========================================================
 # MEMORY
-# =========================
+# =========================================================
 
 def ensure_noah_identity():
 
@@ -193,14 +197,13 @@ def save_memory(
         return False
 
 
-# =========================
+# =========================================================
 # NOVA PLANNER
-# =========================
+# =========================================================
 
-def nova_plan(message: str):
+def nova_plan(message: str) -> str:
 
     text = message.lower()
-
 
     if any(word in text for word in [
         "calculate",
@@ -214,7 +217,6 @@ def nova_plan(message: str):
 
         return "calculator"
 
-
     if any(word in text for word in [
         "search",
         "look up",
@@ -225,7 +227,6 @@ def nova_plan(message: str):
 
         return "web_search"
 
-
     if any(word in text for word in [
         "remember",
         "don't forget",
@@ -235,14 +236,12 @@ def nova_plan(message: str):
 
         return "memory"
 
-
     if any(word in text for word in [
         "timer",
         "countdown"
     ]):
 
         return "timer"
-
 
     return "chat"
 
@@ -270,9 +269,9 @@ def nova_execute(
     return None
 
 
-# =========================
+# =========================================================
 # CALCULATOR
-# =========================
+# =========================================================
 
 def nova_calculate(
     expression: str
@@ -281,8 +280,7 @@ def nova_calculate(
     try:
 
         allowed = (
-            "0123456789"
-            "+-*/(). "
+            "0123456789+-*/(). "
         )
 
         cleaned = "".join(
@@ -294,13 +292,14 @@ def nova_calculate(
         if not cleaned:
 
             return (
-                "I couldn't find "
-                "a calculation."
+                "I couldn't find a calculation."
             )
 
         result = eval(
             cleaned,
-            {"__builtins__": {}},
+            {
+                "__builtins__": {}
+            },
             {}
         )
 
@@ -309,14 +308,13 @@ def nova_calculate(
     except Exception:
 
         return (
-            "I couldn't "
-            "calculate that."
+            "I couldn't calculate that."
         )
 
 
-# =========================
-# DATA MODELS
-# =========================
+# =========================================================
+# REQUEST MODELS
+# =========================================================
 
 class ChatMessage(BaseModel):
 
@@ -334,12 +332,14 @@ class VisionMessage(BaseModel):
     image: str
 
 
-# =========================
+# =========================================================
 # HOME
-# =========================
+# =========================================================
 
 @app.get("/")
-def home(request: Request):
+def home(
+    request: Request
+):
 
     session_key = request.cookies.get(
         "nova_access"
@@ -365,9 +365,9 @@ def home(request: Request):
     )
 
 
-# =========================
+# =========================================================
 # LOGIN PAGE
-# =========================
+# =========================================================
 
 @app.get("/login")
 def login():
@@ -377,9 +377,9 @@ def login():
     )
 
 
-# =========================
-# LOGIN
-# =========================
+# =========================================================
+# AUTHENTICATION
+# =========================================================
 
 @app.post("/auth")
 def authenticate(
@@ -393,7 +393,6 @@ def authenticate(
             detail="Nova access is not configured."
         )
 
-
     if not secrets.compare_digest(
         data.key,
         ACCESS_KEY
@@ -404,35 +403,26 @@ def authenticate(
             detail="Invalid access key."
         )
 
-
     response = RedirectResponse(
         "/",
         status_code=303
     )
 
-
     response.set_cookie(
-
         key="nova_access",
-
         value=ACCESS_KEY,
-
         httponly=True,
-
         secure=True,
-
         samesite="strict",
-
         max_age=60 * 60 * 24 * 7
     )
-
 
     return response
 
 
-# =========================
-# NORMAL CHAT
-# =========================
+# =========================================================
+# CHAT
+# =========================================================
 
 @app.post("/chat")
 def chat(
@@ -442,19 +432,19 @@ def chat(
 
     require_access(request)
 
-
     plan = nova_plan(
         data.message
     )
-
 
     tool = nova_execute(
         plan,
         data.message
     )
 
-
+    # -------------------------
     # Calculator
+    # -------------------------
+
     if tool == "calculator":
 
         result = nova_calculate(
@@ -466,8 +456,10 @@ def chat(
             f"The result is {result}."
         }
 
-
+    # -------------------------
     # Memory
+    # -------------------------
+
     if tool == "memory":
 
         saved = save_memory(
@@ -487,25 +479,23 @@ def chat(
             "I couldn't save that memory."
         }
 
-
+    # -------------------------
     # Load memory
+    # -------------------------
+
     ensure_noah_identity()
 
     memories = get_noah_memory()
 
-
     memory_text = "\n".join(
-
         f"- {memory['memory_key']}: "
         f"{memory['memory_value']}"
-
         for memory in memories
     )
 
-
-    # =========================
+    # =====================================================
     # NOVA PERSONALITY
-    # =========================
+    # =====================================================
 
     system_prompt = f"""
 
@@ -531,6 +521,7 @@ PERSONALITY:
 IMPORTANT:
 
 You are Nova.
+
 You are Noah's personal AI assistant.
 
 Persistent memory:
@@ -541,8 +532,13 @@ Use Noah's memories naturally when relevant.
 
 Your goal is to feel like Noah has his own sophisticated,
 intelligent AI assistant.
+
 """
 
+
+    # =====================================================
+    # AI RESPONSE
+    # =====================================================
 
     response = client.chat.completions.create(
 
@@ -565,7 +561,6 @@ intelligent AI assistant.
         max_tokens=300
     )
 
-
     return {
 
         "reply":
@@ -574,9 +569,9 @@ intelligent AI assistant.
     }
 
 
-# =========================
+# =========================================================
 # VISION
-# =========================
+# =========================================================
 
 @app.post("/vision")
 def vision(
@@ -586,54 +581,19 @@ def vision(
 
     require_access(request)
 
-
-    # Make sure an image was sent.
-
-    if not data.image.startswith(
-        "data:image/"
-    ):
-
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid image."
-        )
-
-
     try:
 
         response = client.chat.completions.create(
 
-            # Vision model
             model="Qwen/Qwen2.5-VL-3B-Instruct",
 
             messages=[
 
                 {
                     "role": "system",
-
-                    "content": """
-You are Nova, Noah's personal AI assistant.
-
-You can analyze images.
-
-Carefully inspect the provided image
-and answer Noah's question about it.
-
-Only describe things that are actually
-visible in the image.
-
-Do not invent details.
-
-Do not claim that you cannot view images.
-
-Be concise but useful.
-
-If Noah asks what something is,
-identify it when you can.
-
-If you are uncertain,
-say that you are uncertain.
-"""
+                    "content":
+                    "You are Nova, Noah's personal AI assistant. "
+                    "Analyze images accurately and clearly."
                 },
 
                 {
@@ -643,7 +603,6 @@ say that you are uncertain.
 
                         {
                             "type": "text",
-
                             "text":
                             data.message
                             or
@@ -659,31 +618,25 @@ say that you are uncertain.
                                 data.image
 
                             }
+
                         }
 
                     ]
+
                 }
 
             ],
 
-            max_tokens=300
+            max_tokens=500
+
         )
-
-
-        reply = (
-            response
-            .choices[0]
-            .message
-            .content
-        )
-
 
         return {
 
-            "reply": reply
+            "reply":
+            response.choices[0].message.content
 
         }
-
 
     except Exception as error:
 
@@ -701,9 +654,137 @@ say that you are uncertain.
         )
 
 
-# =========================
+# =========================================================
+# VISION MODEL DIAGNOSTIC
+# =========================================================
+
+@app.get("/vision-models")
+def vision_models(
+    request: Request
+):
+
+    require_access(request)
+
+    token = os.environ.get(
+        "HF_TOKEN"
+    )
+
+    if not token:
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=
+            "HF_TOKEN is not configured."
+
+        )
+
+    request_url = URLRequest(
+
+        "https://router.huggingface.co/v1/models",
+
+        headers={
+
+            "Authorization":
+            f"Bearer {token}"
+
+        }
+
+    )
+
+    try:
+
+        with urlopen(
+            request_url,
+            timeout=20
+        ) as response:
+
+            payload = json.loads(
+
+                response
+                .read()
+                .decode("utf-8")
+
+            )
+
+        all_models = payload.get(
+            "data",
+            []
+        )
+
+        vision_models_found = []
+
+        vision_keywords = [
+
+            "vision",
+
+            "-vl-",
+
+            "vl/",
+
+            "vl-",
+
+            "gemma-3",
+
+            "gemma3",
+
+            "glm-4.5v",
+
+            "aya-vision"
+
+        ]
+
+        for item in all_models:
+
+            model_id = item.get(
+                "id",
+                ""
+            )
+
+            lower_id = (
+                model_id.lower()
+            )
+
+            if any(
+
+                keyword in lower_id
+
+                for keyword
+                in vision_keywords
+
+            ):
+
+                vision_models_found.append(
+                    model_id
+                )
+
+        return {
+
+            "vision_models":
+            vision_models_found
+
+        }
+
+    except Exception as error:
+
+        print(
+            "Vision model diagnostic error:",
+            error
+        )
+
+        raise HTTPException(
+
+            status_code=500,
+
+            detail=str(error)
+
+        )
+
+
+# =========================================================
 # DEVELOPER LOGIN
-# =========================
+# =========================================================
 
 @app.get("/developer-login")
 def developer_login():
@@ -713,14 +794,16 @@ def developer_login():
     )
 
 
-# =========================
+# =========================================================
 # DEVELOPER PANEL
-# =========================
+# =========================================================
 
 @app.get("/developer")
 def developer(
+
     x_developer_key:
     Optional[str] = Header(None)
+
 ):
 
     require_developer(
@@ -732,14 +815,16 @@ def developer(
     )
 
 
-# =========================
+# =========================================================
 # DEVELOPER STATUS
-# =========================
+# =========================================================
 
 @app.get("/developer/status")
 def developer_status(
+
     x_developer_key:
     Optional[str] = Header(None)
+
 ):
 
     require_developer(
@@ -747,6 +832,8 @@ def developer_status(
     )
 
     return {
+
         "status":
         "authenticated"
-    }
+
+    }   
