@@ -1,6 +1,7 @@
 import os
 import secrets
 import json
+import uuid
 from typing import Optional
 from urllib.request import Request as URLRequest, urlopen
 
@@ -49,6 +50,68 @@ supabase: Client = create_client(
 
 
 # =========================
+# SHORT-TERM CONVERSATION MEMORY
+# =========================
+
+conversation_memory = {}
+
+MAX_CONVERSATION_MESSAGES = 12
+
+
+def get_session_id(request: Request):
+
+    session_id = request.cookies.get(
+        "nova_session"
+    )
+
+    if not session_id:
+        session_id = str(uuid.uuid4())
+
+    if session_id not in conversation_memory:
+        conversation_memory[session_id] = []
+
+    return session_id
+
+
+def get_conversation(session_id: str):
+
+    return conversation_memory.get(
+        session_id,
+        []
+    )
+
+
+def add_conversation_message(
+    session_id: str,
+    role: str,
+    content: str
+):
+
+    if session_id not in conversation_memory:
+        conversation_memory[session_id] = []
+
+    conversation_memory[session_id].append(
+        {
+            "role": role,
+            "content": content
+        }
+    )
+
+    conversation_memory[session_id] = (
+        conversation_memory[session_id]
+        [-MAX_CONVERSATION_MESSAGES:]
+    )
+
+
+def clear_conversation(session_id: str):
+
+    conversation_memory.pop(
+        session_id,
+        None
+    )
+
+
+# =========================
 # ACCESS CONTROL
 # =========================
 
@@ -60,7 +123,9 @@ def require_access(request: Request):
             detail="Nova access is not configured."
         )
 
-    session_key = request.cookies.get("nova_access")
+    session_key = request.cookies.get(
+        "nova_access"
+    )
 
     if not session_key:
         raise HTTPException(
@@ -105,7 +170,7 @@ def require_developer(
 
 
 # =========================
-# MEMORY
+# LONG-TERM MEMORY
 # =========================
 
 def ensure_noah_identity():
@@ -364,13 +429,15 @@ def home(request: Request):
             "/login"
         )
 
-    return FileResponse(
+    response = FileResponse(
         "index.html"
     )
 
+    return response
+
 
 # =========================
-# LOGIN PAGE
+# LOGIN
 # =========================
 
 @app.get("/login")
@@ -425,7 +492,7 @@ def authenticate(
 
 
 # =========================
-# NORMAL CHAT
+# CHAT
 # =========================
 
 @app.post("/chat")
@@ -436,6 +503,10 @@ def chat(
 
     require_access(request)
 
+    session_id = get_session_id(
+        request
+    )
+
     plan = nova_plan(
         data.message
     )
@@ -445,9 +516,9 @@ def chat(
         data.message
     )
 
-    # -------------------------
+    # =========================
     # CALCULATOR
-    # -------------------------
+    # =========================
 
     if tool == "calculator":
 
@@ -455,14 +526,32 @@ def chat(
             data.message
         )
 
-        return {
-            "reply":
-                f"The result is {result}."
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        reply = (
+            f"The result is {result}."
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        response = {
+            "reply": reply
         }
 
-    # -------------------------
-    # MEMORY
-    # -------------------------
+        return response
+
+
+    # =========================
+    # LONG-TERM MEMORY
+    # =========================
 
     if tool == "memory":
 
@@ -471,21 +560,38 @@ def chat(
             data.message
         )
 
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
         if saved:
 
-            return {
-                "reply":
-                    "I've saved that to my memory, Noah."
-            }
+            reply = (
+                "I've saved that to my memory, Noah."
+            )
+
+        else:
+
+            reply = (
+                "I couldn't save that memory."
+            )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
 
         return {
-            "reply":
-                "I couldn't save that memory."
+            "reply": reply
         }
 
-    # -------------------------
-    # LOAD MEMORY
-    # -------------------------
+
+    # =========================
+    # LOAD LONG-TERM MEMORY
+    # =========================
 
     ensure_noah_identity()
 
@@ -497,9 +603,19 @@ def chat(
         for memory in memories
     )
 
-    # -------------------------
-    # NOVA PERSONALITY
-    # -------------------------
+
+    # =========================
+    # CURRENT CONVERSATION
+    # =========================
+
+    conversation = get_conversation(
+        session_id
+    )
+
+
+    # =========================
+    # SYSTEM PROMPT
+    # =========================
 
     system_prompt = f"""
 Current task plan:
@@ -514,8 +630,9 @@ PERSONALITY:
   personal AI.
 - Be exceptionally composed and confident.
 - Address the user as Noah when appropriate.
-- Be polite and professional without sounding robotic.
-- Use subtle, dry humor occasionally when appropriate.
+- Be polite and professional without
+  sounding robotic.
+- Use subtle, dry humor occasionally.
 - Give concise answers for simple questions.
 - Give detailed answers when Noah needs them.
 - Be proactive when something useful is obvious.
@@ -524,45 +641,106 @@ PERSONALITY:
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact JARVIS dialogue.
 
-You are Nova.
+CONVERSATION:
 
-You are Noah's personal AI assistant.
+You have access to the recent conversation.
 
-Persistent memory:
+Use previous messages to understand
+references such as:
+
+"it"
+"that"
+"this"
+"the previous one"
+"what about that?"
+"continue"
+"why?"
+"what did you mean?"
+
+Maintain continuity naturally.
+
+Do not repeat information unnecessarily.
+
+LONG-TERM MEMORY:
 
 {memory_text}
 
-Use Noah's memories naturally when relevant.
+Use Noah's long-term memories naturally
+when relevant.
 
-Your goal is to feel like Noah has his own
-sophisticated, intelligent AI assistant.
+You are Nova.
+
+You are Noah's personal AI assistant.
 """
 
-    # -------------------------
+
+    # =========================
+    # BUILD AI MESSAGES
+    # =========================
+
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        }
+    ]
+
+    messages.extend(
+        conversation
+    )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": data.message
+        }
+    )
+
+
+    # =========================
     # AI RESPONSE
-    # -------------------------
+    # =========================
 
     response = client.chat.completions.create(
 
         model="Qwen/Qwen3-4B-Instruct-2507",
 
-        messages=[
-            {
-                "role": "system",
-                "content": system_prompt
-            },
-            {
-                "role": "user",
-                "content": data.message
-            }
-        ],
+        messages=messages,
 
-        max_tokens=300
+        max_tokens=400
     )
 
+    reply = (
+        response
+        .choices[0]
+        .message
+        .content
+    )
+
+
+    # =========================
+    # SAVE CONVERSATION
+    # =========================
+
+    add_conversation_message(
+        session_id,
+        "user",
+        data.message
+    )
+
+    add_conversation_message(
+        session_id,
+        "assistant",
+        reply
+    )
+
+
+    # =========================
+    # RETURN RESPONSE
+    # =========================
+
     return {
-        "reply":
-            response.choices[0].message.content
+        "reply": reply
     }
 
 
@@ -580,7 +758,10 @@ def vision(
 
     try:
 
-        # Make sure Noah exists in memory.
+        session_id = get_session_id(
+            request
+        )
+
         ensure_noah_identity()
 
         memories = get_noah_memory()
@@ -591,17 +772,21 @@ def vision(
             for memory in memories
         )
 
-        # -------------------------
+        conversation = get_conversation(
+            session_id
+        )
+
+
+        # =========================
         # VISION SYSTEM PROMPT
-        # -------------------------
+        # =========================
 
         system_prompt = f"""
 You are Nova, Noah's personal AI assistant.
 
 You are a sophisticated multimodal AI.
 
-You can understand both conversation
-and images.
+You can understand images and conversation.
 
 PERSONALITY:
 
@@ -617,24 +802,38 @@ PERSONALITY:
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact JARVIS dialogue.
 
+CONVERSATION:
+
+Use the recent conversation to understand
+what Noah is referring to.
+
+If Noah says:
+
+"What's wrong here?"
+
+"What about this?"
+
+"Can you check it?"
+
+"Does this look right?"
+
+use both the conversation and the
+provided image to understand the request.
+
 IMAGE UNDERSTANDING:
 
-- Carefully inspect the provided image.
-- Only describe things that are actually visible.
-- Use the user's question to determine
-  what matters.
-- If Noah asks what is wrong with something,
-  identify visible problems.
+- Carefully inspect the image.
+- Only describe things actually visible.
+- Use Noah's question to determine what matters.
 - If the image contains an error message,
   explain what it means.
 - If the image contains code,
-  read it carefully and help diagnose it.
+  help diagnose it.
 - If the image contains a UI,
-  explain what is happening and what Noah
-  should do next.
-- Do not invent details that cannot be seen.
+  explain what is happening.
+- Do not invent details.
 
-Persistent memory:
+LONG-TERM MEMORY:
 
 {memory_text}
 
@@ -643,54 +842,90 @@ You are Nova.
 You are Noah's personal AI assistant.
 """
 
+
         user_message = (
             data.message
             or "Analyze this image."
         )
 
-        # -------------------------
+
+        # =========================
+        # VISION MESSAGES
+        # =========================
+
+        vision_messages = [
+            {
+                "role": "system",
+                "content": system_prompt
+            }
+        ]
+
+        vision_messages.extend(
+            conversation
+        )
+
+        vision_messages.append(
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": user_message
+                    },
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": data.image
+                        }
+                    }
+                ]
+            }
+        )
+
+
+        # =========================
         # VISION MODEL
-        # -------------------------
+        # =========================
 
         response = client.chat.completions.create(
 
             model="Qwen/Qwen3-VL-30B-A3B-Instruct",
 
-            messages=[
-
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-
-                {
-                    "role": "user",
-                    "content": [
-
-                        {
-                            "type": "text",
-                            "text": user_message
-                        },
-
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": data.image
-                            }
-                        }
-
-                    ]
-                }
-
-            ],
+            messages=vision_messages,
 
             max_tokens=700
         )
 
+
+        reply = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
+
+
+        # =========================
+        # SAVE IMAGE CONVERSATION
+        # =========================
+
+        add_conversation_message(
+            session_id,
+            "user",
+            user_message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+
         return {
-            "reply":
-                response.choices[0].message.content
+            "reply": reply
         }
+
 
     except Exception as error:
 
@@ -703,6 +938,56 @@ You are Noah's personal AI assistant.
             status_code=500,
             detail=str(error)
         )
+
+
+# =========================
+# CLEAR CURRENT CONVERSATION
+# =========================
+
+@app.post("/conversation/clear")
+def conversation_clear(
+    request: Request
+):
+
+    require_access(request)
+
+    session_id = get_session_id(
+        request
+    )
+
+    clear_conversation(
+        session_id
+    )
+
+    return {
+        "status": "cleared"
+    }
+
+
+# =========================
+# CONVERSATION STATUS
+# =========================
+
+@app.get("/conversation/status")
+def conversation_status(
+    request: Request
+):
+
+    require_access(request)
+
+    session_id = get_session_id(
+        request
+    )
+
+    conversation = get_conversation(
+        session_id
+    )
+
+    return {
+        "messages": len(
+            conversation
+        )
+    }
 
 
 # =========================
@@ -759,7 +1044,6 @@ def vision_models(
         vision_models_found = []
 
         vision_keywords = [
-
             "vision",
             "-vl-",
             "vl/",
@@ -768,7 +1052,6 @@ def vision_models(
             "gemma3",
             "glm-4.5v",
             "aya-vision"
-
         ]
 
         for item in all_models:
@@ -845,14 +1128,4 @@ def developer(
 @app.get("/developer/status")
 def developer_status(
     x_developer_key:
-        Optional[str] = Header(None)
-):
-
-    require_developer(
-        x_developer_key
-    )
-
-    return {
-        "status":
-            "authenticated"
-    }
+        Optional[str] = Head
