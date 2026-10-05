@@ -12,9 +12,9 @@ from supabase import create_client, Client
 app = FastAPI(title="Nova Core")
 
 
-# =========================================================
-# AI
-# =========================================================
+# =========================
+# AI CONNECTION
+# =========================
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
@@ -22,9 +22,9 @@ client = OpenAI(
 )
 
 
-# =========================================================
+# =========================
 # SUPABASE MEMORY
-# =========================================================
+# =========================
 
 supabase: Client = create_client(
     os.environ.get("SUPABASE_URL"),
@@ -32,16 +32,19 @@ supabase: Client = create_client(
 )
 
 
-# =========================================================
-# AUTHENTICATION
-# =========================================================
+# =========================
+# KEYS
+# =========================
 
 DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
 ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 
 
-def require_access(request: Request):
+# =========================
+# ACCESS CONTROL
+# =========================
 
+def require_access(request: Request):
     if not ACCESS_KEY:
         raise HTTPException(
             status_code=500,
@@ -50,27 +53,33 @@ def require_access(request: Request):
 
     session_key = request.cookies.get("nova_access")
 
-    if not session_key or not secrets.compare_digest(
-        session_key,
-        ACCESS_KEY
-    ):
+    if not session_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Nova access required."
+        )
+
+    if not secrets.compare_digest(session_key, ACCESS_KEY):
         raise HTTPException(
             status_code=401,
             detail="Nova access required."
         )
 
 
-def require_developer(
-    x_developer_key: Optional[str]
-):
-
+def require_developer(x_developer_key: Optional[str]):
     if not DEVELOPER_KEY:
         raise HTTPException(
             status_code=500,
             detail="Developer authentication is not configured."
         )
 
-    if not x_developer_key or not secrets.compare_digest(
+    if not x_developer_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Developer access required."
+        )
+
+    if not secrets.compare_digest(
         x_developer_key,
         DEVELOPER_KEY
     ):
@@ -80,14 +89,12 @@ def require_developer(
         )
 
 
-# =========================================================
-# MEMORY
-# =========================================================
+# =========================
+# NOVA MEMORY
+# =========================
 
 def ensure_noah_identity():
-
     try:
-
         existing = (
             supabase
             .table("nova_memory")
@@ -98,7 +105,6 @@ def ensure_noah_identity():
         )
 
         if not existing.data:
-
             supabase.table("nova_memory").insert({
                 "user_id": "noah",
                 "memory_key": "name",
@@ -106,14 +112,11 @@ def ensure_noah_identity():
             }).execute()
 
     except Exception as error:
-
         print("Memory identity error:", error)
 
 
 def get_noah_memory():
-
     try:
-
         result = (
             supabase
             .table("nova_memory")
@@ -125,19 +128,12 @@ def get_noah_memory():
         return result.data or []
 
     except Exception as error:
-
         print("Memory read error:", error)
-
         return []
 
 
-def save_memory(
-    memory_key: str,
-    memory_value: str
-):
-
+def save_memory(memory_key: str, memory_value: str):
     try:
-
         supabase.table("nova_memory").insert({
             "user_id": "noah",
             "memory_key": memory_key,
@@ -147,15 +143,13 @@ def save_memory(
         return True
 
     except Exception as error:
-
         print("Memory save error:", error)
-
         return False
 
 
-# =========================================================
+# =========================
 # NOVA PLANNER
-# =========================================================
+# =========================
 
 def nova_plan(message: str) -> str:
 
@@ -170,9 +164,7 @@ def nova_plan(message: str) -> str:
         "plus",
         "minus"
     ]):
-
         return "calculator"
-
 
     if any(word in text for word in [
         "search",
@@ -181,9 +173,7 @@ def nova_plan(message: str) -> str:
         "news",
         "what happened today"
     ]):
-
         return "web_search"
-
 
     if any(word in text for word in [
         "remember",
@@ -191,29 +181,18 @@ def nova_plan(message: str) -> str:
         "save this",
         "keep in mind"
     ]):
-
         return "memory"
-
 
     if any(word in text for word in [
         "timer",
         "countdown"
     ]):
-
         return "timer"
-
 
     return "chat"
 
 
-# =========================================================
-# TOOL EXECUTION
-# =========================================================
-
-def nova_execute(
-    plan: str,
-    message: str
-):
+def nova_execute(plan: str, message: str):
 
     if plan == "chat":
         return None
@@ -233,13 +212,11 @@ def nova_execute(
     return None
 
 
-# =========================================================
+# =========================
 # CALCULATOR
-# =========================================================
+# =========================
 
-def nova_calculate(
-    expression: str
-):
+def nova_calculate(expression: str):
 
     try:
 
@@ -252,7 +229,6 @@ def nova_calculate(
         )
 
         if not cleaned:
-
             return "I couldn't find a calculation."
 
         result = eval(
@@ -268,24 +244,26 @@ def nova_calculate(
         return "I couldn't calculate that."
 
 
-# =========================================================
-# MODELS
-# =========================================================
+# =========================
+# REQUEST MODELS
+# =========================
 
 class ChatMessage(BaseModel):
-
     message: str
 
 
-class VisionMessage(BaseModel):
+class LoginRequest(BaseModel):
+    key: str
 
+
+class VisionMessage(BaseModel):
     message: str
     image: str
 
 
-# =========================================================
-# LOGIN
-# =========================================================
+# =========================
+# HOME
+# =========================
 
 @app.get("/")
 def home(request: Request):
@@ -295,57 +273,35 @@ def home(request: Request):
     )
 
     if not session_key or not ACCESS_KEY:
-
-        return RedirectResponse(
-            "/login"
-        )
+        return RedirectResponse("/login")
 
     if not secrets.compare_digest(
         session_key,
         ACCESS_KEY
     ):
+        return RedirectResponse("/login")
 
-        return RedirectResponse(
-            "/login"
-        )
+    return FileResponse("index.html")
 
-    return FileResponse(
-        "index.html"
-    )
 
+# =========================
+# LOGIN PAGE
+# =========================
 
 @app.get("/login")
 def login():
 
-    return FileResponse(
-        "login.html"
-    )
+    return FileResponse("login.html")
 
 
-@app.post("/auth")
-def authenticate(request: Request):
-
-    # This route is intentionally handled
-    # by the JSON body below.
-
-    raise HTTPException(
-        status_code=405,
-        detail="Use the login form."
-    )
-
-
-class LoginRequest(BaseModel):
-
-    key: str
-
+# =========================
+# LOGIN
+# =========================
 
 @app.post("/auth")
-def authenticate_json(
-    data: LoginRequest
-):
+def authenticate(data: LoginRequest):
 
     if not ACCESS_KEY:
-
         raise HTTPException(
             status_code=500,
             detail="Nova access is not configured."
@@ -355,7 +311,6 @@ def authenticate_json(
         data.key,
         ACCESS_KEY
     ):
-
         raise HTTPException(
             status_code=401,
             detail="Invalid access key."
@@ -378,9 +333,9 @@ def authenticate_json(
     return response
 
 
-# =========================================================
-# CHAT
-# =========================================================
+# =========================
+# NORMAL CHAT
+# =========================
 
 @app.post("/chat")
 def chat(
@@ -390,9 +345,7 @@ def chat(
 
     require_access(request)
 
-    plan = nova_plan(
-        data.message
-    )
+    plan = nova_plan(data.message)
 
     tool = nova_execute(
         plan,
@@ -401,7 +354,6 @@ def chat(
 
 
     # Calculator
-
     if tool == "calculator":
 
         result = nova_calculate(
@@ -409,40 +361,35 @@ def chat(
         )
 
         return {
-            "reply":
-                f"The result is {result}."
+            "reply": f"The result is {result}."
         }
 
 
     # Memory
-
     if tool == "memory":
-
-        memory_value = data.message
 
         saved = save_memory(
             "user_memory",
-            memory_value
+            data.message
         )
 
         if saved:
 
             return {
                 "reply":
-                    "I've saved that to my memory, Noah."
+                "I've saved that to my memory, Noah."
             }
 
         return {
             "reply":
-                "I couldn't save that memory."
+            "I couldn't save that memory."
         }
 
 
+    # Load identity
     ensure_noah_identity()
 
-
     memories = get_noah_memory()
-
 
     memory_text = "\n".join(
         f"- {memory['memory_key']}: "
@@ -451,16 +398,24 @@ def chat(
     )
 
 
+    # =========================
+    # NOVA PERSONALITY
+    # =========================
+
     system_prompt = f"""
+
+Current task plan:
+{plan}
+
 You are Nova, Noah's personal AI assistant.
 
 PERSONALITY:
 
-- Speak with the calm, intelligent, sophisticated manner of a futuristic personal AI.
+- Speak with the calm, intelligent and sophisticated manner of a futuristic personal AI.
 - Be exceptionally composed and confident.
 - Address the user as Noah when appropriate.
 - Be polite and professional without sounding robotic.
-- Use subtle, dry humor occasionally when appropriate.
+- Use subtle, dry humor occasionally when it fits.
 - Give concise answers for simple questions.
 - Give detailed answers when Noah needs them.
 - Be proactive when something useful is obvious.
@@ -468,18 +423,19 @@ PERSONALITY:
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact dialogue from JARVIS.
 
-CURRENT TASK PLAN:
+IMPORTANT:
 
-{plan}
+You are Nova.
+You are Noah's personal AI assistant.
 
-PERSISTENT MEMORY:
+Persistent memory:
 
 {memory_text}
 
 Use Noah's memories naturally when relevant.
 
 Your goal is to feel like Noah has his own sophisticated,
-intelligent personal AI assistant.
+intelligent AI assistant.
 """
 
 
@@ -507,13 +463,13 @@ intelligent personal AI assistant.
 
     return {
         "reply":
-            response.choices[0].message.content
+        response.choices[0].message.content
     }
 
 
-# =========================================================
+# =========================
 # VISION
-# =========================================================
+# =========================
 
 @app.post("/vision")
 def vision(
@@ -523,6 +479,9 @@ def vision(
 
     require_access(request)
 
+
+    # Check that the frontend
+    # actually sent an image.
 
     if not data.image.startswith(
         "data:image/"
@@ -544,19 +503,29 @@ def vision(
 
                 {
                     "role": "system",
+
                     "content": """
 You are Nova, Noah's personal AI assistant.
 
 You can analyze images.
 
-Look carefully at the provided image and answer
-Noah's question about it.
+Carefully inspect the provided image
+and answer Noah's question about it.
 
-Only describe things that are actually visible.
+Only describe things that are actually
+visible in the image.
 
 Do not invent details.
 
+Do not claim that you cannot view images.
+
 Be concise but useful.
+
+If Noah asks what something is,
+identify it when you can.
+
+If you are uncertain,
+say that you are uncertain.
 """
                 },
 
@@ -567,7 +536,11 @@ Be concise but useful.
 
                         {
                             "type": "text",
-                            "text": data.message
+
+                            "text":
+                            data.message
+                            or
+                            "Describe this image."
                         },
 
                         {
@@ -576,23 +549,27 @@ Be concise but useful.
                             "image_url": {
                                 "url": data.image
                             }
-
                         }
 
                     ]
-
                 }
 
             ],
 
             max_tokens=300
+        )
 
+
+        reply = (
+            response
+            .choices[0]
+            .message
+            .content
         )
 
 
         return {
-            "reply":
-                response.choices[0].message.content
+            "reply": reply
         }
 
 
@@ -609,9 +586,9 @@ Be concise but useful.
         )
 
 
-# =========================================================
-# DEVELOPER
-# =========================================================
+# =========================
+# DEVELOPER LOGIN
+# =========================
 
 @app.get("/developer-login")
 def developer_login():
@@ -620,6 +597,10 @@ def developer_login():
         "developer-login.html"
     )
 
+
+# =========================
+# DEVELOPER PANEL
+# =========================
 
 @app.get("/developer")
 def developer(
@@ -636,6 +617,10 @@ def developer(
     )
 
 
+# =========================
+# DEVELOPER STATUS
+# =========================
+
 @app.get("/developer/status")
 def developer_status(
     x_developer_key:
@@ -648,4 +633,4 @@ def developer_status(
 
     return {
         "status": "authenticated"
-        }
+    }     
