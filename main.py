@@ -175,6 +175,75 @@ def require_developer(
 
 
 # ============================================================
+# NOVA PERMISSION ENGINE
+# ============================================================
+
+ACTION_PERMISSIONS = {
+
+    # LOW RISK
+    "open_app": "low",
+    "open_website": "low",
+    "set_timer": "low",
+    "read_screen": "low",
+    "search_web": "low",
+
+    # HIGH RISK
+    "send_message": "high",
+    "send_email": "high",
+    "delete_file": "high",
+    "change_setting": "high",
+
+    # BLOCKED
+    "change_security": "blocked",
+    "share_credentials": "blocked",
+    "disable_security": "blocked"
+}
+
+
+def get_action_permission(
+    action: str
+):
+
+    return ACTION_PERMISSIONS.get(
+        action,
+        "blocked"
+    )
+
+
+def permission_allows_automatic(
+    action: str
+):
+
+    permission = get_action_permission(
+        action
+    )
+
+    return permission == "low"
+
+
+def permission_requires_confirmation(
+    action: str
+):
+
+    permission = get_action_permission(
+        action
+    )
+
+    return permission == "high"
+
+
+def permission_blocks(
+    action: str
+):
+
+    permission = get_action_permission(
+        action
+    )
+
+    return permission == "blocked"
+
+
+# ============================================================
 # LONG-TERM MEMORY
 # ============================================================
 
@@ -242,7 +311,6 @@ def save_memory(
 
     try:
 
-        # Prevent completely empty memories.
         if not memory_key.strip():
             return False
 
@@ -275,24 +343,14 @@ def save_memory(
 # MEMORY EXTRACTION
 # ============================================================
 
-def extract_memory(message: str):
-
-    """
-    Extracts only simple, explicit facts.
-
-    This is deliberately conservative.
-    Nova must NOT invent personal information.
-    """
+def extract_memory(
+    message: str
+):
 
     text = message.strip()
 
-    lower = text.lower()
 
-
-    # --------------------------------------------------------
     # FAVORITE COLOR
-    # --------------------------------------------------------
-
     match = re.search(
         r"(?:my\s+)?favorite\s+color\s+is\s+([a-zA-Z]+)",
         text,
@@ -309,10 +367,7 @@ def extract_memory(message: str):
         )
 
 
-    # --------------------------------------------------------
     # FAVORITE GAME
-    # --------------------------------------------------------
-
     match = re.search(
         r"(?:my\s+)?favorite\s+game\s+is\s+(.+)",
         text,
@@ -329,10 +384,7 @@ def extract_memory(message: str):
         )
 
 
-    # --------------------------------------------------------
     # NAME
-    # --------------------------------------------------------
-
     match = re.search(
         r"(?:my\s+name\s+is|call\s+me)\s+([A-Za-z0-9_-]+)",
         text,
@@ -349,10 +401,7 @@ def extract_memory(message: str):
         )
 
 
-    # --------------------------------------------------------
     # LIKES
-    # --------------------------------------------------------
-
     match = re.search(
         r"(?:i\s+like|i\s+love)\s+(.+)",
         text,
@@ -369,10 +418,7 @@ def extract_memory(message: str):
         )
 
 
-    # --------------------------------------------------------
     # DISLIKES
-    # --------------------------------------------------------
-
     match = re.search(
         r"(?:i\s+don't\s+like|i\s+dislike|i\s+hate)\s+(.+)",
         text,
@@ -396,7 +442,9 @@ def extract_memory(message: str):
 # MEMORY REQUEST DETECTION
 # ============================================================
 
-def is_memory_request(message: str):
+def is_memory_request(
+    message: str
+):
 
     text = message.lower()
 
@@ -422,17 +470,20 @@ def is_memory_request(message: str):
 # NOVA PLANNER
 # ============================================================
 
-def nova_plan(message: str) -> str:
+def nova_plan(
+    message: str
+):
 
     text = message.lower()
 
 
-    # Memory comes first.
+    # MEMORY
     if is_memory_request(message):
 
         return "memory"
 
 
+    # CALCULATOR
     if any(
         word in text
         for word in [
@@ -449,6 +500,7 @@ def nova_plan(message: str) -> str:
         return "calculator"
 
 
+    # WEB SEARCH
     if any(
         word in text
         for word in [
@@ -463,6 +515,7 @@ def nova_plan(message: str) -> str:
         return "web_search"
 
 
+    # TIMER
     if any(
         word in text
         for word in [
@@ -562,11 +615,41 @@ class VisionMessage(BaseModel):
 
 
 # ============================================================
+# PERMISSION TEST ENDPOINT
+# ============================================================
+
+@app.get("/permissions/{action}")
+def permission_test(
+    action: str,
+    request: Request
+):
+
+    require_access(request)
+
+    permission = get_action_permission(
+        action
+    )
+
+    return {
+        "action": action,
+        "permission": permission,
+        "automatic":
+            permission == "low",
+        "confirmation_required":
+            permission == "high",
+        "blocked":
+            permission == "blocked"
+    }
+
+
+# ============================================================
 # HOME
 # ============================================================
 
 @app.get("/")
-def home(request: Request):
+def home(
+    request: Request
+):
 
     session_key = request.cookies.get(
         "nova_access"
@@ -768,7 +851,7 @@ def chat(
 
 
     # ========================================================
-    # LONG-TERM MEMORY
+    # LOAD LONG-TERM MEMORY
     # ========================================================
 
     ensure_noah_identity()
@@ -792,7 +875,7 @@ def chat(
 
 
     # ========================================================
-    # NOVA SYSTEM PROMPT
+    # SYSTEM PROMPT
     # ========================================================
 
     system_prompt = f"""
@@ -817,19 +900,15 @@ PERSONALITY:
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact JARVIS dialogue.
 
-IMPORTANT:
-
-You have two separate sources of information.
+TWO SOURCES OF INFORMATION:
 
 1. CURRENT CONVERSATION
 
-This contains things actually said during
-the current conversation.
+Things actually said during this conversation.
 
 2. LONG-TERM MEMORY
 
-This contains facts explicitly saved in
-Nova's persistent memory.
+Facts explicitly stored in Nova's memory.
 
 Never mix these sources.
 
@@ -837,30 +916,26 @@ LONG-TERM MEMORY:
 
 {memory_text}
 
-STRICT MEMORY INTEGRITY RULES:
+STRICT MEMORY INTEGRITY:
 
 - Never invent a memory.
-- Never fabricate a story about Noah's past.
+- Never fabricate Noah's past.
 - Never invent places Noah has visited.
 - Never invent things Noah owns.
 - Never invent things Noah said.
 - Never invent dates or events.
-- Never invent habits or experiences.
+- Never invent habits.
+- Never invent experiences.
 - Never invent quotes.
 - Never invent emotional experiences.
 - Never invent personal history.
 - Never turn an assumption into a fact.
-- Never add fictional details to make an answer
-  sound more personal.
+- Never add fictional details to sound personal.
 - Never claim "I remember" unless the information
-  actually exists in the current conversation or
-  LONG-TERM MEMORY.
-- If information is not available, say you don't
-  know instead of guessing.
-- If you are uncertain, explicitly say you are
-  uncertain.
-- Accuracy is more important than sounding
-  personal.
+  actually exists in the conversation or memory.
+- If information is unavailable, say you don't know.
+- If uncertain, say you are uncertain.
+- Accuracy is more important than personality.
 
 EXAMPLE:
 
@@ -872,7 +947,7 @@ The only supported fact is:
 
 "Noah's favorite color is blue."
 
-You must NOT invent:
+Do NOT invent:
 
 - a rainy evening walk
 - a park
@@ -882,26 +957,11 @@ You must NOT invent:
 - a date
 - a past experience
 
-unless those details were actually provided.
-
-If Noah asks:
-
-"What is my favorite color?"
-
-and the conversation contains:
-
-"My favorite color is blue."
-
-answer:
-
-"Your favorite color is blue."
-
-Do not add fictional details.
+unless Noah actually provided those details.
 
 CONVERSATION CONTINUITY:
 
-Use previous conversation messages to
-understand references such as:
+Use previous messages to understand:
 
 "it"
 "that"
@@ -912,20 +972,33 @@ understand references such as:
 "why?"
 "what did you mean?"
 
-However, do not turn conversation context
-into long-term memory unless the memory system
+Do not turn conversation context into
+long-term memory unless the memory system
 explicitly saves it.
 
 MEMORY QUESTIONS:
 
-If Noah asks what you remember, only describe
+If Noah asks what you remember, only report
 facts actually present in LONG-TERM MEMORY.
 
-If something is not present there, say:
+If something is not there, say:
 
 "I don't have that saved in my long-term memory."
 
 Never make something up.
+
+ACTION SAFETY:
+
+You may discuss possible actions, but never
+claim that a device action was completed unless
+a real tool actually performed it and returned
+a successful result.
+
+Never bypass permission requirements.
+
+Never treat a high-risk action as low-risk.
+
+Never treat a blocked action as allowed.
 
 You are Nova.
 
@@ -934,7 +1007,7 @@ You are Noah's personal AI assistant.
 
 
     # ========================================================
-    # BUILD AI MESSAGES
+    # BUILD MESSAGES
     # ========================================================
 
     messages = [
@@ -968,48 +1041,4 @@ You are Noah's personal AI assistant.
             max_tokens=400
         )
 
-        reply = (
-            response
-            .choices[0]
-            .message
-            .content
-        )
-
-    except Exception as error:
-
-        print(
-            "Chat error:",
-            error
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error)
-        )
-
-
-    # ========================================================
-    # SAVE CONVERSATION
-    # ========================================================
-
-    add_conversation_message(
-        session_id,
-        "user",
-        data.message
-    )
-
-    add_conversation_message(
-        session_id,
-        "assistant",
-        reply
-    )
-
-
-    return {
-        "reply": reply
-    }
-
-
-# ============================================================
-# VISION
-# ===============================================
+   
