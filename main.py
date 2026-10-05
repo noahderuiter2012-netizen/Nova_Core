@@ -962,16 +962,314 @@ def chat(
         request
     )
 
+    # --------------------------------------------------------
+    # CREATE STRUCTURED PLAN
+    # --------------------------------------------------------
+
     plan = nova_plan(
         data.message
     )
 
-    tool = nova_execute(
+    # --------------------------------------------------------
+    # EXECUTION / PERMISSION CHECK
+    # --------------------------------------------------------
+
+    execution = nova_execute(
         plan,
         data.message
     )
 
+    # --------------------------------------------------------
+    # MEMORY
+    # --------------------------------------------------------
 
+    if plan["type"] == "memory":
+
+        extracted = extract_memory(
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        if extracted:
+
+            memory_key, memory_value = extracted
+
+            saved = save_memory(
+                memory_key,
+                memory_value
+            )
+
+            if saved:
+
+                reply = (
+                    f"Understood, Noah. "
+                    f"I've saved that "
+                    f"{memory_key.replace('_', ' ')} "
+                    f"as {memory_value}."
+                )
+
+            else:
+
+                reply = (
+                    "I understood the memory, "
+                    "but I couldn't save it."
+                )
+
+        else:
+
+            reply = (
+                "I can remember that, Noah, "
+                "but I need the specific fact "
+                "you want me to save."
+            )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan
+        }
+
+    # --------------------------------------------------------
+    # BLOCKED ACTION
+    # --------------------------------------------------------
+
+    if (
+        execution
+        and execution.get("status") == "blocked"
+    ):
+
+        reply = (
+            f"I can't perform "
+            f"'{execution['action']}'. "
+            f"That action is blocked by Nova's "
+            f"security policy."
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan,
+            "execution": execution
+        }
+
+    # --------------------------------------------------------
+    # HIGH-RISK ACTION
+    # --------------------------------------------------------
+
+    if (
+        execution
+        and execution.get("status")
+        == "confirmation_required"
+    ):
+
+        reply = (
+            f"That requires your confirmation, Noah. "
+            f"Requested action: "
+            f"{execution['action']}."
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan,
+            "execution": execution
+        }
+
+    # --------------------------------------------------------
+    # LOW-RISK ACTION
+    # --------------------------------------------------------
+
+    if (
+        execution
+        and execution.get("status") == "allowed"
+    ):
+
+        reply = (
+            f"That action is permitted, Noah. "
+            f"Requested action: "
+            f"{execution['action']}."
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan,
+            "execution": execution
+        }
+
+    # --------------------------------------------------------
+    # NORMAL AI CHAT
+    # --------------------------------------------------------
+
+    ensure_noah_identity()
+
+    memories = get_noah_memory()
+
+    memory_text = "\n".join(
+        f"- {memory['memory_key']}: "
+        f"{memory['memory_value']}"
+        for memory in memories
+    )
+
+    conversation = get_conversation(
+        session_id
+    )
+
+    system_prompt = f"""
+You are Nova, Noah's personal AI assistant.
+
+You are a sophisticated futuristic AI assistant.
+
+PERSONALITY:
+
+- Calm, intelligent and sophisticated.
+- Composed and confident.
+- Address the user as Noah when appropriate.
+- Professional without sounding robotic.
+- Use subtle dry humor occasionally.
+- Give concise answers for simple questions.
+- Give detailed answers when necessary.
+- Be proactive when useful.
+- Never invent personal information.
+- Accuracy always takes priority over personality.
+- Never pretend you completed an action.
+- Never claim to be the fictional character JARVIS.
+- Do not copy exact JARVIS dialogue.
+
+LONG-TERM MEMORY:
+
+{memory_text}
+
+STRICT MEMORY INTEGRITY:
+
+- Never invent a memory.
+- Never fabricate Noah's past.
+- Never invent places Noah has visited.
+- Never invent things Noah owns.
+- Never invent things Noah said.
+- Never invent dates or events.
+- Never invent habits.
+- Never invent experiences.
+- Never invent quotes.
+- Never invent emotional experiences.
+- Never invent personal history.
+- Never turn assumptions into facts.
+- Never add fictional details to sound personal.
+- Never claim "I remember" unless the information
+  actually exists in the conversation or memory.
+- If information is unavailable, say you don't know.
+
+ACTION SAFETY:
+
+- Never claim an action was completed unless
+  a real tool actually performed it.
+- Never bypass the permission system.
+- Never treat high-risk actions as low-risk.
+- Never treat blocked actions as allowed.
+
+You are Nova.
+You are Noah's personal AI assistant.
+"""
+
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        }
+    ]
+
+    messages.extend(
+        conversation
+    )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": data.message
+        }
+    )
+
+    try:
+
+        response = client.chat.completions.create(
+            model="Qwen/Qwen3-4B-Instruct-2507",
+            messages=messages,
+            max_tokens=400
+        )
+
+        reply = response.choices[0].message.content
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan
+        }
+
+    except Exception as error:
+
+        print(
+            "Chat error:",
+            error
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Nova encountered an AI error."
+        )
     # ========================================================
     # MEMORY
     # ========================================================
