@@ -99,9 +99,29 @@ def nova_plan(message: str) -> str:
     ]):
         return "timer"
 
-    return "chat"
+        return "chat"
+
+
+def nova_execute(plan: str, message: str):
+    if plan == "chat":
+        return None
+
+    if plan == "calculator":
+        return "calculator"
+
+    if plan == "web_search":
+        return "web_search"
+
+    if plan == "memory":
+        return "memory"
+
+    if plan == "timer":
+        return "timer"
+
+    return None
+
+
 class ChatMessage(BaseModel):
-    message: str
 
 
 class AccessRequest(BaseModel):
@@ -212,6 +232,7 @@ def chat(
 
     require_access(request)
     plan = nova_plan(data.message)
+    tool = nova_execute(plan, data.message)
     # Make sure Nova knows who Noah is
     ensure_noah_identity()
 
