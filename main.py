@@ -211,7 +211,7 @@ def chat(
 ):
 
     require_access(request)
-
+    plan = nova_plan(data.message)
     # Make sure Nova knows who Noah is
     ensure_noah_identity()
 
@@ -223,6 +223,10 @@ def chat(
     )
 
     system_prompt = f"""
+    Current task plan:
+{plan}
+
+Use this plan to decide how to handle Noah's request.
 You are Nova, Noah's personal AI assistant.
 
 PERSONALITY:
