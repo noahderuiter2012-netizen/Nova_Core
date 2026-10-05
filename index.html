@@ -2,10 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Nova</title>
 
@@ -17,251 +14,117 @@
         body {
             margin: 0;
             min-height: 100vh;
-            background:
-                radial-gradient(
-                    circle at center,
-                    #07152b 0%,
-                    #020712 45%,
-                    #00030a 100%
-                );
-            color: #eaf7ff;
+            background: #020712;
+            color: white;
             font-family: Arial, sans-serif;
-            overflow: hidden;
         }
 
         .app {
-            display: flex;
-            width: 100%;
             height: 100vh;
-        }
-
-        /* SIDEBAR */
-
-        .sidebar {
-            width: 230px;
-            padding: 24px 18px;
-            background: rgba(3, 10, 22, 0.75);
-            border-right: 1px solid rgba(0, 180, 255, 0.15);
-            backdrop-filter: blur(20px);
-        }
-
-        .logo {
-            font-size: 26px;
-            font-weight: bold;
-            letter-spacing: 4px;
-            color: #7cddff;
-            margin-bottom: 35px;
-        }
-
-        .side-item {
-            padding: 13px;
-            margin-bottom: 8px;
-            border-radius: 12px;
-            color: #91a9ba;
-        }
-
-        .side-item.active {
-            color: #e8faff;
-            background: rgba(0, 150, 255, 0.12);
-        }
-
-        /* MAIN */
-
-        .main {
-            flex: 1;
             display: flex;
             flex-direction: column;
-            position: relative;
         }
 
         .topbar {
-            height: 70px;
+            height: 65px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 25px;
-            border-bottom: 1px solid rgba(0, 180, 255, 0.1);
+            padding: 0 20px;
+            background: rgba(5, 15, 30, 0.95);
+            border-bottom: 1px solid rgba(50, 180, 255, 0.15);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #67dfff;
         }
 
         .status {
-            color: #6fdcff;
+            color: #5de0ff;
             font-size: 13px;
         }
 
-        .status::before {
-            content: "";
-            display: inline-block;
-            width: 7px;
-            height: 7px;
-            margin-right: 8px;
-            border-radius: 50%;
-            background: #4de1ff;
-            box-shadow: 0 0 12px #4de1ff;
-        }
-
-        /* CHAT */
-
-        #chat {
+        .chat {
             flex: 1;
             overflow-y: auto;
-            padding: 25px;
-            padding-bottom: 170px;
+            padding: 20px;
+            padding-bottom: 130px;
         }
 
         .message {
-            max-width: 850px;
-            margin: 0 auto 18px auto;
-            padding: 15px 18px;
-            border-radius: 16px;
+            max-width: 800px;
+            margin: 0 auto 15px;
+            padding: 14px 17px;
+            border-radius: 15px;
             line-height: 1.5;
             white-space: pre-wrap;
         }
 
         .user {
-            background: rgba(0, 120, 255, 0.15);
-            border: 1px solid rgba(0, 150, 255, 0.18);
+            background: rgba(0, 130, 255, 0.15);
         }
 
         .nova {
-            background: rgba(255, 255, 255, 0.035);
-            border: 1px solid rgba(120, 200, 255, 0.08);
+            background: rgba(255, 255, 255, 0.05);
         }
 
-        /* ORB */
-
-        .orb-container {
-            position: absolute;
-            top: 50%;
+        .orb-area {
+            position: fixed;
             left: 50%;
+            top: 43%;
             transform: translate(-50%, -50%);
-            width: 190px;
-            height: 190px;
             pointer-events: none;
-            opacity: 0.75;
         }
 
         .orb {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-
-            width: 80px;
-            height: 80px;
-
+            width: 85px;
+            height: 85px;
             border-radius: 50%;
 
             background:
                 radial-gradient(
                     circle at 35% 30%,
-                    #e8fbff,
-                    #42cfff 20%,
+                    white,
+                    #49d5ff 20%,
                     #087cff 55%,
-                    #003b9e 100%
+                    #003b9e
                 );
 
             box-shadow:
-                0 0 20px #16baff,
-                0 0 50px rgba(0, 160, 255, 0.8),
-                0 0 100px rgba(0, 100, 255, 0.45);
-
-            transition: 0.3s;
-        }
-
-        .ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border: 1px solid rgba(50, 190, 255, 0.3);
-            border-radius: 50%;
-        }
-
-        .ring.one {
-            width: 115px;
-            height: 115px;
-        }
-
-        .ring.two {
-            width: 150px;
-            height: 150px;
-        }
-
-        .ring.three {
-            width: 190px;
-            height: 190px;
+                0 0 25px #18bfff,
+                0 0 70px rgba(0, 140, 255, 0.7);
         }
 
         .thinking .orb {
-            animation: pulse 1.2s infinite;
-        }
-
-        .thinking .ring.one {
-            animation: rotate 3s linear infinite;
-        }
-
-        .thinking .ring.two {
-            animation: rotateReverse 4s linear infinite;
-        }
-
-        .thinking .ring.three {
-            animation: rotate 6s linear infinite;
+            animation: pulse 1s infinite;
         }
 
         @keyframes pulse {
             0%, 100% {
-                transform: translate(-50%, -50%) scale(1);
+                transform: scale(1);
             }
 
             50% {
-                transform: translate(-50%, -50%) scale(1.15);
+                transform: scale(1.18);
             }
         }
-
-        @keyframes rotate {
-            from {
-                transform:
-                    translate(-50%, -50%)
-                    rotate(0deg);
-            }
-
-            to {
-                transform:
-                    translate(-50%, -50%)
-                    rotate(360deg);
-            }
-        }
-
-        @keyframes rotateReverse {
-            from {
-                transform:
-                    translate(-50%, -50%)
-                    rotate(360deg);
-            }
-
-            to {
-                transform:
-                    translate(-50%, -50%)
-                    rotate(0deg);
-            }
-        }
-
-        /* INPUT */
 
         .input-area {
-            position: absolute;
-            bottom: 20px;
+            position: fixed;
             left: 50%;
+            bottom: 15px;
             transform: translateX(-50%);
-            width: min(900px, calc(100% - 30px));
-            z-index: 10;
+            width: min(900px, calc(100% - 20px));
         }
 
         .preview {
             display: none;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             position: relative;
-            width: 120px;
+            width: 110px;
         }
 
         .preview.show {
@@ -269,132 +132,70 @@
         }
 
         .preview img {
-            width: 120px;
-            height: 90px;
+            width: 110px;
+            height: 80px;
             object-fit: cover;
-            border-radius: 12px;
-            border: 1px solid rgba(70, 190, 255, 0.4);
+            border-radius: 10px;
         }
 
         #removePhoto {
             position: absolute;
-            right: -8px;
-            top: -8px;
-
-            width: 24px;
-            height: 24px;
-
-            border: none;
+            right: -7px;
+            top: -7px;
+            width: 25px;
+            height: 25px;
+            padding: 0;
             border-radius: 50%;
-
-            background: #10243a;
-            color: white;
-
-            cursor: pointer;
         }
 
         .input-box {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
+            padding: 8px;
 
-            padding: 9px;
-
-            background: rgba(5, 15, 30, 0.92);
-            border: 1px solid rgba(80, 180, 255, 0.2);
-
-            border-radius: 18px;
-
-            backdrop-filter: blur(20px);
-
-            box-shadow:
-                0 10px 50px rgba(0, 0, 0, 0.4);
+            background: rgba(5, 15, 30, 0.97);
+            border: 1px solid rgba(70, 190, 255, 0.25);
+            border-radius: 17px;
         }
 
-        #messageInput {
+        input[type="text"] {
             flex: 1;
-
             min-width: 0;
-
+            background: transparent;
             border: none;
             outline: none;
-
-            background: transparent;
-
             color: white;
-
             font-size: 16px;
-
             padding: 12px;
         }
 
         button {
-            flex-shrink: 0;
-
             width: 43px;
             height: 43px;
+            flex-shrink: 0;
 
             border: none;
-            border-radius: 13px;
+            border-radius: 12px;
 
-            background: rgba(30, 120, 200, 0.15);
-
-            color: #a9eaff;
-
-            cursor: pointer;
+            background: rgba(40, 130, 200, 0.18);
+            color: #aeeaff;
 
             font-size: 18px;
-
-            transition: 0.2s;
+            cursor: pointer;
         }
 
-        button:hover {
-            background: rgba(30, 150, 255, 0.3);
+        button:active {
+            transform: scale(0.94);
         }
 
         #sendButton {
-            background: linear-gradient(
-                135deg,
-                #087cff,
-                #14c8ff
-            );
-
+            background: #087cff;
             color: white;
-
-            box-shadow:
-                0 0 20px rgba(0, 150, 255, 0.35);
         }
 
-        input[type="file"] {
+        #photoInput {
             display: none;
-        }
-
-        /* MOBILE */
-
-        @media (max-width: 700px) {
-
-            .sidebar {
-                display: none;
-            }
-
-            .topbar {
-                padding: 0 15px;
-            }
-
-            #chat {
-                padding: 15px;
-            }
-
-            .orb-container {
-                transform:
-                    translate(-50%, -50%)
-                    scale(0.8);
-            }
-
-            .input-area {
-                width: calc(100% - 20px);
-                bottom: 10px;
-            }
         }
     </style>
 </head>
@@ -403,577 +204,485 @@
 
 <div class="app">
 
-    <!-- SIDEBAR -->
+    <div class="topbar">
+        <div class="logo">NOVA</div>
+        <div class="status">ONLINE</div>
+    </div>
 
-    <aside class="sidebar">
+    <div id="chat" class="chat"></div>
 
-        <div class="logo">
-            NOVA
-        </div>
+    <div id="orbArea" class="orb-area">
+        <div class="orb"></div>
+    </div>
 
-        <div class="side-item active">
-            Chat
-        </div>
+    <div class="input-area">
 
-        <div class="side-item">
-            Memory
-        </div>
+        <div id="photoPreview" class="preview">
 
-        <div class="side-item">
-            Tools
-        </div>
+            <img id="previewImage">
 
-        <div class="side-item">
-            Developer
-        </div>
-
-    </aside>
-
-
-    <!-- MAIN -->
-
-    <main class="main">
-
-        <div class="topbar">
-
-            <div>
-                Nova
-            </div>
-
-            <div class="status">
-                Online
-            </div>
+            <button
+                id="removePhoto"
+                type="button"
+            >
+                ×
+            </button>
 
         </div>
 
+        <div class="input-box">
 
-        <!-- ORB -->
+            <button
+                id="photoButton"
+                type="button"
+            >
+                📷
+            </button>
 
-        <div
-            id="orbContainer"
-            class="orb-container"
-        >
-
-            <div class="ring one"></div>
-            <div class="ring two"></div>
-            <div class="ring three"></div>
-
-            <div class="orb"></div>
-
-        </div>
-
-
-        <!-- CHAT -->
-
-        <div id="chat"></div>
-
-
-        <!-- INPUT -->
-
-        <div class="input-area">
-
-            <!-- PHOTO PREVIEW -->
-
-            <div
-                id="photoPreview"
-                class="preview"
+            <input
+                id="photoInput"
+                type="file"
+                accept="image/*"
             >
 
-                <img
-                    id="previewImage"
-                    src=""
-                    alt="Selected image"
-                >
+            <button
+                id="voiceButton"
+                type="button"
+            >
+                🎙️
+            </button>
 
-                <button
-                    id="removePhoto"
-                    type="button"
-                >
-                    ×
-                </button>
+            <input
+                id="messageInput"
+                type="text"
+                placeholder="Talk to Nova..."
+            >
 
-            </div>
-
-
-            <div class="input-box">
-
-                <!-- PHOTO -->
-
-                <button
-                    id="photoButton"
-                    type="button"
-                    title="Add photo"
-                >
-                    📷
-                </button>
-
-                <input
-                    id="photoInput"
-                    type="file"
-                    accept="image/*"
-                >
-
-
-                <!-- VOICE -->
-
-                <button
-                    id="voiceButton"
-                    type="button"
-                    title="Voice input"
-                >
-                    🎙️
-                </button>
-
-
-                <!-- TEXT -->
-
-                <input
-                    id="messageInput"
-                    type="text"
-                    placeholder="Talk to Nova..."
-                    autocomplete="off"
-                >
-
-
-                <!-- SEND -->
-
-                <button
-                    id="sendButton"
-                    type="button"
-                    title="Send"
-                >
-                    ➤
-                </button>
-
-            </div>
+            <button
+                id="sendButton"
+                type="button"
+            >
+                ➤
+            </button>
 
         </div>
 
-    </main>
+    </div>
 
 </div>
 
 
 <script>
 
-    const chat =
-        document.getElementById("chat");
-
-    const input =
-        document.getElementById("messageInput");
-
-    const sendButton =
-        document.getElementById("sendButton");
-
-    const voiceButton =
-        document.getElementById("voiceButton");
-
-    const photoButton =
-        document.getElementById("photoButton");
-
-    const photoInput =
-        document.getElementById("photoInput");
-
-    const photoPreview =
-        document.getElementById("photoPreview");
-
-    const previewImage =
-        document.getElementById("previewImage");
-
-    const removePhoto =
-        document.getElementById("removePhoto");
-
-    const orbContainer =
-        document.getElementById("orbContainer");
+console.log("Nova JavaScript loaded");
 
 
-    let selectedPhoto = null;
+const chat =
+    document.getElementById("chat");
+
+const input =
+    document.getElementById("messageInput");
+
+const sendButton =
+    document.getElementById("sendButton");
+
+const voiceButton =
+    document.getElementById("voiceButton");
+
+const photoButton =
+    document.getElementById("photoButton");
+
+const photoInput =
+    document.getElementById("photoInput");
+
+const photoPreview =
+    document.getElementById("photoPreview");
+
+const previewImage =
+    document.getElementById("previewImage");
+
+const removePhoto =
+    document.getElementById("removePhoto");
+
+const orbArea =
+    document.getElementById("orbArea");
 
 
-    // =========================
-    // ADD MESSAGE
-    // =========================
+let selectedPhoto = null;
 
-    function addMessage(
-        text,
-        type
-    ) {
 
-        const message =
-            document.createElement("div");
+/* =========================
+   MESSAGE
+========================= */
 
-        message.className =
-            "message " + type;
+function addMessage(text, type) {
 
-        message.textContent =
-            text;
+    const element =
+        document.createElement("div");
 
-        chat.appendChild(message);
+    element.className =
+        "message " + type;
 
-        chat.scrollTop =
-            chat.scrollHeight;
+    element.textContent =
+        text;
+
+    chat.appendChild(element);
+
+    chat.scrollTop =
+        chat.scrollHeight;
+}
+
+
+/* =========================
+   THINKING
+========================= */
+
+function thinking(value) {
+
+    if (value) {
+        orbArea.classList.add("thinking");
+    } else {
+        orbArea.classList.remove("thinking");
+    }
+}
+
+
+/* =========================
+   PHOTO BUTTON
+========================= */
+
+photoButton.onclick = function() {
+
+    console.log("Photo button clicked");
+
+    photoInput.click();
+
+};
+
+
+/* =========================
+   PHOTO SELECTED
+========================= */
+
+photoInput.onchange = function() {
+
+    const file =
+        photoInput.files[0];
+
+    if (!file) {
+        return;
     }
 
+    console.log("Photo selected");
 
-    // =========================
-    // THINKING
-    // =========================
+    selectedPhoto = file;
 
-    function setThinking(
-        thinking
-    ) {
+    previewImage.src =
+        URL.createObjectURL(file);
 
-        if (thinking) {
+    photoPreview.classList.add("show");
 
-            orbContainer.classList.add(
-                "thinking"
-            );
+};
 
-        } else {
 
-            orbContainer.classList.remove(
-                "thinking"
-            );
+/* =========================
+   REMOVE PHOTO
+========================= */
 
-        }
+removePhoto.onclick = function() {
+
+    selectedPhoto = null;
+
+    photoInput.value = "";
+
+    previewImage.src = "";
+
+    photoPreview.classList.remove("show");
+
+};
+
+
+/* =========================
+   SEND
+========================= */
+
+sendButton.onclick = sendMessage;
+
+
+async function sendMessage() {
+
+    const text =
+        input.value.trim();
+
+    if (!text && !selectedPhoto) {
+        return;
     }
 
+    if (text) {
 
-    // =========================
-    // PHOTO BUTTON
-    // =========================
+        addMessage(
+            text,
+            "user"
+        );
 
-    photoButton.addEventListener(
-        "click",
-        function () {
+    } else {
 
-            photoInput.click();
+        addMessage(
+            "📷 Image",
+            "user"
+        );
 
-        }
-    );
+    }
+
+    input.value = "";
+
+    thinking(true);
 
 
-    // =========================
-    // PHOTO SELECTED
-    // =========================
+    try {
 
-    photoInput.addEventListener(
-        "change",
-        function () {
+        /* =====================
+           VISION
+        ===================== */
 
-            const file =
-                photoInput.files[0];
+        if (selectedPhoto) {
 
-            if (!file) {
-                return;
-            }
+            const reader =
+                new FileReader();
 
-            selectedPhoto = file;
+            reader.onload = async function() {
 
-            const imageURL =
-                URL.createObjectURL(file);
+                try {
 
-            previewImage.src =
-                imageURL;
+                    const response =
+                        await fetch(
+                            "/vision",
+                            {
+                                method: "POST",
 
-            photoPreview.classList.add(
-                "show"
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                body:
+                                    JSON.stringify({
+                                        message:
+                                            text ||
+                                            "Describe this image.",
+
+                                        image:
+                                            reader.result
+                                    })
+                            }
+                        );
+
+
+                    const data =
+                        await response.json();
+
+
+                    if (!response.ok) {
+
+                        throw new Error(
+                            data.detail ||
+                            "Vision request failed."
+                        );
+
+                    }
+
+
+                    addMessage(
+                        data.reply,
+                        "nova"
+                    );
+
+
+                } catch (error) {
+
+                    console.error(
+                        "Vision error:",
+                        error
+                    );
+
+                    addMessage(
+                        "Vision error: " +
+                        error.message,
+                        "nova"
+                    );
+
+                }
+
+
+                selectedPhoto = null;
+
+                photoInput.value = "";
+
+                previewImage.src = "";
+
+                photoPreview.classList.remove(
+                    "show"
+                );
+
+                thinking(false);
+
+            };
+
+
+            reader.readAsDataURL(
+                selectedPhoto
             );
 
-        }
-    );
-
-
-    // =========================
-    // REMOVE PHOTO
-    // =========================
-
-    removePhoto.addEventListener(
-        "click",
-        function () {
-
-            selectedPhoto = null;
-
-            photoInput.value = "";
-
-            previewImage.src = "";
-
-            photoPreview.classList.remove(
-                "show"
-            );
-
-        }
-    );
-
-
-    // =========================
-    // SEND MESSAGE
-    // =========================
-
-    async function sendMessage() {
-
-        const text =
-            input.value.trim();
-
-
-        // Nothing to send
-        if (!text && !selectedPhoto) {
             return;
         }
 
 
-        // Show user's message
-        if (text) {
+        /* =====================
+           NORMAL CHAT
+        ===================== */
 
-            addMessage(
-                text,
-                "user"
+        const response =
+            await fetch(
+                "/chat",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body:
+                        JSON.stringify({
+                            message: text
+                        })
+                }
             );
 
-        } else {
 
-            addMessage(
-                "📷 Image",
-                "user"
+        const data =
+            await response.json();
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                data.detail ||
+                "Chat request failed."
             );
 
         }
 
 
-        input.value = "";
-
-        setThinking(true);
-
-
-        try {
-
-            /*
-             * ========================
-             * IMAGE MODE
-             * ========================
-             */
-
-            if (selectedPhoto) {
-
-                const reader =
-                    new FileReader();
+        addMessage(
+            data.reply,
+            "nova"
+        );
 
 
-                reader.onload =
-                    async function () {
+    } catch (error) {
 
-                        const imageData =
-                            reader.result;
+        console.error(
+            "Chat error:",
+            error
+        );
 
-
-                        try {
-
-                            const response =
-                                await fetch(
-                                    "/vision",
-                                    {
-                                        method: "POST",
-
-                                        headers: {
-                                            "Content-Type":
-                                                "application/json"
-                                        },
-
-                                        body:
-                                            JSON.stringify({
-                                                message:
-                                                    text ||
-                                                    "Describe this image.",
-
-                                                image:
-                                                    imageData
-                                            })
-                                    }
-                                );
-
-
-                            if (!response.ok) {
-
-                                const errorText =
-                                    await response.text();
-
-                                throw new Error(
-                                    errorText ||
-                                    "Vision request failed."
-                                );
-
-                            }
-
-
-                            const data =
-                                await response.json();
-
-
-                            addMessage(
-                                data.reply ||
-                                "I couldn't analyze that image.",
-                                "nova"
-                            );
-
-
-                        } catch (error) {
-
-                            console.error(
-                                "Vision error:",
-                                error
-                            );
-
-                            addMessage(
-                                "I couldn't analyze the image. Check the Render logs for the vision error.",
-                                "nova"
-                            );
-
-                        } finally {
-
-                            selectedPhoto =
-                                null;
-
-                            photoInput.value =
-                                "";
-
-                            previewImage.src =
-                                "";
-
-                            photoPreview.classList.remove(
-                                "show"
-                            );
-
-                            setThinking(false);
-                        }
-
-                    };
-
-
-                reader.readAsDataURL(
-                    selectedPhoto
-                );
-
-
-                return;
-            }
-
-
-            /*
-             * ========================
-             * NORMAL CHAT MODE
-             * ========================
-             */
-
-            const response =
-                await fetch(
-                    "/chat",
-                    {
-                        method: "POST",
-
-                        headers: {
-                            "Content-Type":
-                                "application/json"
-                        },
-
-                        body:
-                            JSON.stringify({
-                                message: text
-                            })
-                    }
-                );
-
-
-            if (!response.ok) {
-
-                const errorText =
-                    await response.text();
-
-                throw new Error(
-                    errorText ||
-                    "Chat request failed."
-                );
-
-            }
-
-
-            const data =
-                await response.json();
-
-
-            addMessage(
-                data.reply ||
-                "I didn't receive a response.",
-                "nova"
-            );
-
-
-        } catch (error) {
-
-            console.error(
-                "Chat error:",
-                error
-            );
-
-            addMessage(
-                "I couldn't connect to Nova.",
-                "nova"
-            );
-
-        } finally {
-
-            setThinking(false);
-
-        }
+        addMessage(
+            "Connection error: " +
+            error.message,
+            "nova"
+        );
 
     }
 
 
-    // =========================
-    // SEND BUTTON
-    // =========================
+    thinking(false);
 
-    sendButton.addEventListener(
-        "click",
-        sendMessage
-    );
+}
 
 
-    // =========================
-    // ENTER KEY
-    // =========================
+/* =========================
+   ENTER
+========================= */
 
-    input.addEventListener(
-        "keydown",
-        function (event) {
+input.onkeydown = function(event) {
 
-            if (
-                event.key === "Enter" &&
-                !event.shiftKey
-            ) {
+    if (event.key === "Enter") {
 
-                event.preventDefault();
+        event.preventDefault();
 
-                sendMessage();
+        sendMessage();
 
-            }
+    }
 
-        }
-    );
+};
 
 
-    // =========================
-    // VOICE INPUT
-    // =========================
+/* =========================
+   VOICE
+========================= */
 
-    const SpeechRecognition =
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition;
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
 
 
-    if (SpeechRecognition) {
+if (SpeechRecognition) {
 
-        const recognition =
-            new SpeechRecognition();
+    const recognition =
+        new SpeechRecognition();
 
-        recognition.lang =
-            "en-US";
+    recognition.lang = "en-US";
+
+    recognition.continuous = false;
+
+    recognition.interimResults = false;
+
+
+    voiceButton.onclick = function() {
+
+        console.log("Voice button clicked");
+
+        recognition.start();
+
+    };
+
+
+    recognition.onresult =
+        function(event) {
+
+            input.value =
+                event.results[0][0].transcript;
+
+        };
+
+
+    recognition.onerror =
+        function(event) {
+
+            console.error(
+                "Voice error:",
+                event.error
+            );
+
+        };
+
+} else {
+
+    voiceButton.onclick = function() {
+
+        alert(
+            "Voice input is not supported by this browser."
+        );
+
+    };
+
+}
+
+
+console.log("Nova interface ready");
+
+</script>
+
+</body>
+</html>
