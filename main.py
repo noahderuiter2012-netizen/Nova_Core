@@ -62,7 +62,44 @@ def require_developer(x_developer_key: Optional[str]):
             detail="Developer access required."
         )
 
+def nova_plan(message: str) -> str:
+    text = message.lower()
 
+    if any(word in text for word in [
+        "calculate",
+        "what is",
+        "how much is",
+        "multiply",
+        "divide",
+        "plus",
+        "minus"
+    ]):
+        return "calculator"
+
+    if any(word in text for word in [
+        "search",
+        "look up",
+        "latest",
+        "news",
+        "what happened today"
+    ]):
+        return "web_search"
+
+    if any(word in text for word in [
+        "remember",
+        "don't forget",
+        "save this",
+        "keep in mind"
+    ]):
+        return "memory"
+
+    if any(word in text for word in [
+        "timer",
+        "countdown"
+    ]):
+        return "timer"
+
+    return "chat"
 class ChatMessage(BaseModel):
     message: str
 
