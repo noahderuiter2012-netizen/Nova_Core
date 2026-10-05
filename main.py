@@ -68,6 +68,13 @@ supabase: Client = create_client(
 conversation_memory = {}
 
 MAX_CONVERSATION_MESSAGES = 12
+# ============================================================
+# PENDING ACTION CONFIRMATIONS
+# ============================================================
+
+pending_confirmations = {}
+
+CONFIRMATION_EXPIRY_SECONDS = 120
 
 
 def get_session_id(request: Request):
@@ -119,6 +126,69 @@ def clear_conversation(session_id: str):
 
     conversation_memory.pop(
         session_id,
+        None
+    )
+    # ============================================================
+# CONFIRMATION SYSTEM
+# ============================================================
+
+def create_confirmation(
+    session_id: str,
+    action: str,
+    target: str
+):
+
+    confirmation_id = secrets.token_urlsafe(24)
+
+    pending_confirmations[confirmation_id] = {
+        "session_id": session_id,
+        "action": action,
+        "target": target,
+        "created_at": __import__("time").time()
+    }
+
+    return confirmation_id
+
+
+def get_confirmation(
+    confirmation_id: str,
+    session_id: str
+):
+
+    confirmation = pending_confirmations.get(
+        confirmation_id
+    )
+
+    if not confirmation:
+        return None
+
+    if confirmation["session_id"] != session_id:
+        return None
+
+    current_time = __import__("time").time()
+
+    if (
+        current_time
+        - confirmation["created_at"]
+        > CONFIRMATION_EXPIRY_SECONDS
+    ):
+
+        pending_confirmations.pop(
+            confirmation_id,
+            None
+        )
+
+        return None
+
+    return confirmation
+
+
+def remove_confirmation(
+    confirmation_id: str
+):
+
+    pending_confirmations.pop(
+        confirmation_id,
         None
     )
 
@@ -828,7 +898,11 @@ class VisionMessage(BaseModel):
 
     message: str
     image: str
+    
+    
+class ConfirmationRequest(BaseModel):
 
+    confirmation_id: str
 
 # ============================================================
 # PERMISSION TEST ENDPOINT
@@ -950,7 +1024,73 @@ def authenticate(
 # CHAT
 # ============================================================
 
-@app.post("/chat")
+# ============================================================
+# ACTION CONFIRMATION
+# ============================================================
+
+@app.post("/actions/confirm")
+def confirm_action(
+    data: ConfirmationRequest,
+    request: Request
+):
+
+    require_access(request)
+
+    session_id = get_session_id(
+        request
+    )
+
+    confirmation = get_confirmation(
+        data.confirmation_id,
+        session_id
+    )
+
+    if not confirmation:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Confirmation expired or not found."
+        )
+
+    action = confirmation["action"]
+    target = confirmation["target"]
+
+    # Re-check permission on the server.
+    permission = get_action_permission(
+        action
+    )
+
+    # Never trust the old confirmation
+    # if the permission policy changed.
+    if permission != "high":
+
+        remove_confirmation(
+            data.confirmation_id
+        )
+
+        raise HTTPException(
+            status_code=403,
+            detail="This action is no longer permitted."
+        )
+
+    # IMPORTANT:
+    # No real action is executed yet.
+    # This phase only proves confirmation.
+    remove_confirmation(
+        data.confirmation_id
+    )
+
+    return {
+        "status": "confirmed",
+        "action": action,
+        "target": target,
+        "message": (
+            "Action confirmed. "
+            "No external action has been executed yet."
+        )
+    }
+    
+    @app.post("/chat")
 def chat(
     data: ChatMessage,
     request: Request
@@ -1078,8 +1218,43 @@ def chat(
     # --------------------------------------------------------
 
     if (
-        execution
-        and execution.get("status")
+    execution
+    and execution.get("status")
+    == "confirmation_required"
+):
+
+    confirmation_id = create_confirmation(
+        session_id,
+        execution["action"],
+        execution["target"]
+    )
+
+    reply = (
+        f"That action requires your confirmation, Noah.\n\n"
+        f"Action: {execution['action']}\n"
+        f"Target: {execution['target']}\n\n"
+        f"Confirmation ID: {confirmation_id}\n\n"
+        f"No action has been executed."
+    )
+
+    add_conversation_message(
+        session_id,
+        "user",
+        data.message
+    )
+
+    add_conversation_message(
+        session_id,
+        "assistant",
+        reply
+    )
+
+    return {
+        "reply": reply,
+        "plan": plan,
+        "execution": execution,
+        "confirmation_id": confirmation_id
+    }
         == "confirmation_required"
     ):
 
