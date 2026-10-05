@@ -247,6 +247,12 @@ def chat(
     require_access(request)
     plan = nova_plan(data.message)
     tool = nova_execute(plan, data.message)
+    if tool == "calculator":
+    result = nova_calculate(data.message)
+
+    return {
+        "reply": f"The result is {result}."
+    }
     # Make sure Nova knows who Noah is
     ensure_noah_identity()
 
