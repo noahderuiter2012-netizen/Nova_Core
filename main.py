@@ -429,11 +429,9 @@ def home(request: Request):
             "/login"
         )
 
-    response = FileResponse(
+    return FileResponse(
         "index.html"
     )
-
-    return response
 
 
 # =========================
@@ -542,11 +540,9 @@ def chat(
             reply
         )
 
-        response = {
+        return {
             "reply": reply
         }
-
-        return response
 
 
     # =========================
@@ -702,11 +698,8 @@ You are Noah's personal AI assistant.
     # =========================
 
     response = client.chat.completions.create(
-
         model="Qwen/Qwen3-4B-Instruct-2507",
-
         messages=messages,
-
         max_tokens=400
     )
 
@@ -734,10 +727,6 @@ You are Noah's personal AI assistant.
         reply
     )
 
-
-    # =========================
-    # RETURN RESPONSE
-    # =========================
 
     return {
         "reply": reply
@@ -888,11 +877,8 @@ You are Noah's personal AI assistant.
         # =========================
 
         response = client.chat.completions.create(
-
             model="Qwen/Qwen3-VL-30B-A3B-Instruct",
-
             messages=vision_messages,
-
             max_tokens=700
         )
 
@@ -941,7 +927,7 @@ You are Noah's personal AI assistant.
 
 
 # =========================
-# CLEAR CURRENT CONVERSATION
+# CLEAR CONVERSATION
 # =========================
 
 @app.post("/conversation/clear")
@@ -1013,14 +999,11 @@ def vision_models(
         )
 
     request_url = URLRequest(
-
         "https://router.huggingface.co/v1/models",
-
         headers={
             "Authorization":
                 f"Bearer {token}"
         }
-
     )
 
     try:
@@ -1108,8 +1091,7 @@ def developer_login():
 
 @app.get("/developer")
 def developer(
-    x_developer_key:
-        Optional[str] = Header(None)
+    x_developer_key: Optional[str] = Header(None)
 ):
 
     require_developer(
@@ -1127,5 +1109,13 @@ def developer(
 
 @app.get("/developer/status")
 def developer_status(
-    x_developer_key:
-        Optional[str] = Head
+    x_developer_key: Optional[str] = Header(None)
+):
+
+    require_developer(
+        x_developer_key
+    )
+
+    return {
+        "status": "authenticated"
+        }
