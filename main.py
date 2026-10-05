@@ -9,11 +9,15 @@ from openai import OpenAI
 from supabase import create_client, Client
 
 
+# =========================
+# NOVA APP
+# =========================
+
 app = FastAPI(title="Nova Core")
 
 
 # =========================
-# AI CONNECTION
+# HUGGING FACE AI
 # =========================
 
 client = OpenAI(
@@ -23,7 +27,7 @@ client = OpenAI(
 
 
 # =========================
-# SUPABASE MEMORY
+# SUPABASE
 # =========================
 
 supabase: Client = create_client(
@@ -36,8 +40,13 @@ supabase: Client = create_client(
 # KEYS
 # =========================
 
-DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
-ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
+DEVELOPER_KEY = os.environ.get(
+    "NOVA_DEVELOPER_KEY"
+)
+
+ACCESS_KEY = os.environ.get(
+    "NOVA_ACCESS_KEY"
+)
 
 
 # =========================
@@ -45,13 +54,16 @@ ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 # =========================
 
 def require_access(request: Request):
+
     if not ACCESS_KEY:
         raise HTTPException(
             status_code=500,
             detail="Nova access is not configured."
         )
 
-    session_key = request.cookies.get("nova_access")
+    session_key = request.cookies.get(
+        "nova_access"
+    )
 
     if not session_key:
         raise HTTPException(
@@ -59,14 +71,20 @@ def require_access(request: Request):
             detail="Nova access required."
         )
 
-    if not secrets.compare_digest(session_key, ACCESS_KEY):
+    if not secrets.compare_digest(
+        session_key,
+        ACCESS_KEY
+    ):
         raise HTTPException(
             status_code=401,
             detail="Nova access required."
         )
 
 
-def require_developer(x_developer_key: Optional[str]):
+def require_developer(
+    x_developer_key: Optional[str]
+):
+
     if not DEVELOPER_KEY:
         raise HTTPException(
             status_code=500,
@@ -90,11 +108,13 @@ def require_developer(x_developer_key: Optional[str]):
 
 
 # =========================
-# NOVA MEMORY
+# MEMORY
 # =========================
 
 def ensure_noah_identity():
+
     try:
+
         existing = (
             supabase
             .table("nova_memory")
@@ -105,18 +125,27 @@ def ensure_noah_identity():
         )
 
         if not existing.data:
-            supabase.table("nova_memory").insert({
+
+            supabase.table(
+                "nova_memory"
+            ).insert({
                 "user_id": "noah",
                 "memory_key": "name",
                 "memory_value": "Noah"
             }).execute()
 
     except Exception as error:
-        print("Memory identity error:", error)
+
+        print(
+            "Memory identity error:",
+            error
+        )
 
 
 def get_noah_memory():
+
     try:
+
         result = (
             supabase
             .table("nova_memory")
@@ -128,13 +157,25 @@ def get_noah_memory():
         return result.data or []
 
     except Exception as error:
-        print("Memory read error:", error)
+
+        print(
+            "Memory read error:",
+            error
+        )
+
         return []
 
 
-def save_memory(memory_key: str, memory_value: str):
+def save_memory(
+    memory_key: str,
+    memory_value: str
+):
+
     try:
-        supabase.table("nova_memory").insert({
+
+        supabase.table(
+            "nova_memory"
+        ).insert({
             "user_id": "noah",
             "memory_key": memory_key,
             "memory_value": memory_value
@@ -143,7 +184,12 @@ def save_memory(memory_key: str, memory_value: str):
         return True
 
     except Exception as error:
-        print("Memory save error:", error)
+
+        print(
+            "Memory save error:",
+            error
+        )
+
         return False
 
 
@@ -151,9 +197,10 @@ def save_memory(memory_key: str, memory_value: str):
 # NOVA PLANNER
 # =========================
 
-def nova_plan(message: str) -> str:
+def nova_plan(message: str):
 
     text = message.lower()
+
 
     if any(word in text for word in [
         "calculate",
@@ -164,7 +211,9 @@ def nova_plan(message: str) -> str:
         "plus",
         "minus"
     ]):
+
         return "calculator"
+
 
     if any(word in text for word in [
         "search",
@@ -173,7 +222,9 @@ def nova_plan(message: str) -> str:
         "news",
         "what happened today"
     ]):
+
         return "web_search"
+
 
     if any(word in text for word in [
         "remember",
@@ -181,18 +232,25 @@ def nova_plan(message: str) -> str:
         "save this",
         "keep in mind"
     ]):
+
         return "memory"
+
 
     if any(word in text for word in [
         "timer",
         "countdown"
     ]):
+
         return "timer"
+
 
     return "chat"
 
 
-def nova_execute(plan: str, message: str):
+def nova_execute(
+    plan: str,
+    message: str
+):
 
     if plan == "chat":
         return None
@@ -216,11 +274,16 @@ def nova_execute(plan: str, message: str):
 # CALCULATOR
 # =========================
 
-def nova_calculate(expression: str):
+def nova_calculate(
+    expression: str
+):
 
     try:
 
-        allowed = "0123456789+-*/(). "
+        allowed = (
+            "0123456789"
+            "+-*/(). "
+        )
 
         cleaned = "".join(
             char
@@ -229,7 +292,11 @@ def nova_calculate(expression: str):
         )
 
         if not cleaned:
-            return "I couldn't find a calculation."
+
+            return (
+                "I couldn't find "
+                "a calculation."
+            )
 
         result = eval(
             cleaned,
@@ -241,22 +308,28 @@ def nova_calculate(expression: str):
 
     except Exception:
 
-        return "I couldn't calculate that."
+        return (
+            "I couldn't "
+            "calculate that."
+        )
 
 
 # =========================
-# REQUEST MODELS
+# DATA MODELS
 # =========================
 
 class ChatMessage(BaseModel):
+
     message: str
 
 
 class LoginRequest(BaseModel):
+
     key: str
 
 
 class VisionMessage(BaseModel):
+
     message: str
     image: str
 
@@ -273,15 +346,23 @@ def home(request: Request):
     )
 
     if not session_key or not ACCESS_KEY:
-        return RedirectResponse("/login")
+
+        return RedirectResponse(
+            "/login"
+        )
 
     if not secrets.compare_digest(
         session_key,
         ACCESS_KEY
     ):
-        return RedirectResponse("/login")
 
-    return FileResponse("index.html")
+        return RedirectResponse(
+            "/login"
+        )
+
+    return FileResponse(
+        "index.html"
+    )
 
 
 # =========================
@@ -291,7 +372,9 @@ def home(request: Request):
 @app.get("/login")
 def login():
 
-    return FileResponse("login.html")
+    return FileResponse(
+        "login.html"
+    )
 
 
 # =========================
@@ -299,36 +382,50 @@ def login():
 # =========================
 
 @app.post("/auth")
-def authenticate(data: LoginRequest):
+def authenticate(
+    data: LoginRequest
+):
 
     if not ACCESS_KEY:
+
         raise HTTPException(
             status_code=500,
             detail="Nova access is not configured."
         )
 
+
     if not secrets.compare_digest(
         data.key,
         ACCESS_KEY
     ):
+
         raise HTTPException(
             status_code=401,
             detail="Invalid access key."
         )
+
 
     response = RedirectResponse(
         "/",
         status_code=303
     )
 
+
     response.set_cookie(
+
         key="nova_access",
+
         value=ACCESS_KEY,
+
         httponly=True,
+
         secure=True,
+
         samesite="strict",
+
         max_age=60 * 60 * 24 * 7
     )
+
 
     return response
 
@@ -345,7 +442,11 @@ def chat(
 
     require_access(request)
 
-    plan = nova_plan(data.message)
+
+    plan = nova_plan(
+        data.message
+    )
+
 
     tool = nova_execute(
         plan,
@@ -361,7 +462,8 @@ def chat(
         )
 
         return {
-            "reply": f"The result is {result}."
+            "reply":
+            f"The result is {result}."
         }
 
 
@@ -386,14 +488,17 @@ def chat(
         }
 
 
-    # Load identity
+    # Load memory
     ensure_noah_identity()
 
     memories = get_noah_memory()
 
+
     memory_text = "\n".join(
+
         f"- {memory['memory_key']}: "
         f"{memory['memory_value']}"
+
         for memory in memories
     )
 
@@ -415,13 +520,13 @@ PERSONALITY:
 - Be exceptionally composed and confident.
 - Address the user as Noah when appropriate.
 - Be polite and professional without sounding robotic.
-- Use subtle, dry humor occasionally when it fits.
+- Use subtle, dry humor occasionally when appropriate.
 - Give concise answers for simple questions.
 - Give detailed answers when Noah needs them.
 - Be proactive when something useful is obvious.
 - Never pretend you completed an action that you did not actually perform.
 - Never claim to be the fictional character JARVIS.
-- Do not copy exact dialogue from JARVIS.
+- Do not copy exact JARVIS dialogue.
 
 IMPORTANT:
 
@@ -462,8 +567,10 @@ intelligent AI assistant.
 
 
     return {
+
         "reply":
         response.choices[0].message.content
+
     }
 
 
@@ -480,8 +587,7 @@ def vision(
     require_access(request)
 
 
-    # Check that the frontend
-    # actually sent an image.
+    # Make sure an image was sent.
 
     if not data.image.startswith(
         "data:image/"
@@ -497,7 +603,8 @@ def vision(
 
         response = client.chat.completions.create(
 
-            model="Qwen/Qwen3-VL-4B-Instruct",
+            # Vision model
+            model="Qwen/Qwen2.5-VL-3B-Instruct",
 
             messages=[
 
@@ -547,7 +654,10 @@ say that you are uncertain.
                             "type": "image_url",
 
                             "image_url": {
-                                "url": data.image
+
+                                "url":
+                                data.image
+
                             }
                         }
 
@@ -569,7 +679,9 @@ say that you are uncertain.
 
 
         return {
+
             "reply": reply
+
         }
 
 
@@ -581,8 +693,11 @@ say that you are uncertain.
         )
 
         raise HTTPException(
+
             status_code=500,
+
             detail=str(error)
+
         )
 
 
@@ -632,5 +747,6 @@ def developer_status(
     )
 
     return {
-        "status": "authenticated"
+        "status":
+        "authenticated"
     }
