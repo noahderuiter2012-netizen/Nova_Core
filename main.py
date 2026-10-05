@@ -122,6 +122,7 @@ def nova_execute(plan: str, message: str):
 
 
 class ChatMessage(BaseModel):
+    message: str
 
 
 class AccessRequest(BaseModel):
