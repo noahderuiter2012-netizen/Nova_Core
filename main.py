@@ -2,6 +2,7 @@ import os
 import secrets
 import json
 import uuid
+import re
 from typing import Optional
 from urllib.request import Request as URLRequest, urlopen
 
@@ -12,12 +13,16 @@ from openai import OpenAI
 from supabase import create_client, Client
 
 
+# ============================================================
+# NOVA CORE
+# ============================================================
+
 app = FastAPI(title="Nova Core")
 
 
-# =========================
+# ============================================================
 # ENVIRONMENT VARIABLES
-# =========================
+# ============================================================
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
@@ -29,9 +34,9 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
 )
 
 
-# =========================
+# ============================================================
 # AI CLIENT
-# =========================
+# ============================================================
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
@@ -39,9 +44,9 @@ client = OpenAI(
 )
 
 
-# =========================
+# ============================================================
 # SUPABASE
-# =========================
+# ============================================================
 
 supabase: Client = create_client(
     SUPABASE_URL,
@@ -49,9 +54,9 @@ supabase: Client = create_client(
 )
 
 
-# =========================
+# ============================================================
 # SHORT-TERM CONVERSATION MEMORY
-# =========================
+# ============================================================
 
 conversation_memory = {}
 
@@ -111,9 +116,9 @@ def clear_conversation(session_id: str):
     )
 
 
-# =========================
+# ============================================================
 # ACCESS CONTROL
-# =========================
+# ============================================================
 
 def require_access(request: Request):
 
@@ -169,9 +174,9 @@ def require_developer(
         )
 
 
-# =========================
+# ============================================================
 # LONG-TERM MEMORY
-# =========================
+# ============================================================
 
 def ensure_noah_identity():
 
@@ -237,13 +242,20 @@ def save_memory(
 
     try:
 
+        # Prevent completely empty memories.
+        if not memory_key.strip():
+            return False
+
+        if not memory_value.strip():
+            return False
+
         supabase.table(
             "nova_memory"
         ).insert(
             {
                 "user_id": "noah",
-                "memory_key": memory_key,
-                "memory_value": memory_value
+                "memory_key": memory_key.strip(),
+                "memory_value": memory_value.strip()
             }
         ).execute()
 
@@ -259,13 +271,167 @@ def save_memory(
         return False
 
 
-# =========================
+# ============================================================
+# MEMORY EXTRACTION
+# ============================================================
+
+def extract_memory(message: str):
+
+    """
+    Extracts only simple, explicit facts.
+
+    This is deliberately conservative.
+    Nova must NOT invent personal information.
+    """
+
+    text = message.strip()
+
+    lower = text.lower()
+
+
+    # --------------------------------------------------------
+    # FAVORITE COLOR
+    # --------------------------------------------------------
+
+    match = re.search(
+        r"(?:my\s+)?favorite\s+color\s+is\s+([a-zA-Z]+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+
+        color = match.group(1).strip()
+
+        return (
+            "favorite_color",
+            color
+        )
+
+
+    # --------------------------------------------------------
+    # FAVORITE GAME
+    # --------------------------------------------------------
+
+    match = re.search(
+        r"(?:my\s+)?favorite\s+game\s+is\s+(.+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+
+        game = match.group(1).strip()
+
+        return (
+            "favorite_game",
+            game
+        )
+
+
+    # --------------------------------------------------------
+    # NAME
+    # --------------------------------------------------------
+
+    match = re.search(
+        r"(?:my\s+name\s+is|call\s+me)\s+([A-Za-z0-9_-]+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+
+        name = match.group(1).strip()
+
+        return (
+            "name",
+            name
+        )
+
+
+    # --------------------------------------------------------
+    # LIKES
+    # --------------------------------------------------------
+
+    match = re.search(
+        r"(?:i\s+like|i\s+love)\s+(.+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+
+        thing = match.group(1).strip()
+
+        return (
+            "likes",
+            thing
+        )
+
+
+    # --------------------------------------------------------
+    # DISLIKES
+    # --------------------------------------------------------
+
+    match = re.search(
+        r"(?:i\s+don't\s+like|i\s+dislike|i\s+hate)\s+(.+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if match:
+
+        thing = match.group(1).strip()
+
+        return (
+            "dislikes",
+            thing
+        )
+
+
+    return None
+
+
+# ============================================================
+# MEMORY REQUEST DETECTION
+# ============================================================
+
+def is_memory_request(message: str):
+
+    text = message.lower()
+
+    memory_phrases = [
+        "remember this",
+        "remember that",
+        "remember",
+        "don't forget",
+        "do not forget",
+        "save this",
+        "save that",
+        "keep this in mind",
+        "keep that in mind"
+    ]
+
+    return any(
+        phrase in text
+        for phrase in memory_phrases
+    )
+
+
+# ============================================================
 # NOVA PLANNER
-# =========================
+# ============================================================
 
 def nova_plan(message: str) -> str:
 
     text = message.lower()
+
+
+    # Memory comes first.
+    if is_memory_request(message):
+
+        return "memory"
+
 
     if any(
         word in text
@@ -279,7 +445,9 @@ def nova_plan(message: str) -> str:
             "minus"
         ]
     ):
+
         return "calculator"
+
 
     if any(
         word in text
@@ -291,18 +459,9 @@ def nova_plan(message: str) -> str:
             "what happened today"
         ]
     ):
+
         return "web_search"
 
-    if any(
-        word in text
-        for word in [
-            "remember",
-            "don't forget",
-            "save this",
-            "keep in mind"
-        ]
-    ):
-        return "memory"
 
     if any(
         word in text
@@ -311,7 +470,9 @@ def nova_plan(message: str) -> str:
             "countdown"
         ]
     ):
+
         return "timer"
+
 
     return "chat"
 
@@ -339,9 +500,9 @@ def nova_execute(
     return None
 
 
-# =========================
+# ============================================================
 # CALCULATOR
-# =========================
+# ============================================================
 
 def nova_calculate(
     expression: str
@@ -380,9 +541,9 @@ def nova_calculate(
         )
 
 
-# =========================
+# ============================================================
 # REQUEST MODELS
-# =========================
+# ============================================================
 
 class ChatMessage(BaseModel):
 
@@ -400,9 +561,9 @@ class VisionMessage(BaseModel):
     image: str
 
 
-# =========================
+# ============================================================
 # HOME
-# =========================
+# ============================================================
 
 @app.get("/")
 def home(request: Request):
@@ -434,9 +595,9 @@ def home(request: Request):
     )
 
 
-# =========================
+# ============================================================
 # LOGIN
-# =========================
+# ============================================================
 
 @app.get("/login")
 def login():
@@ -446,9 +607,9 @@ def login():
     )
 
 
-# =========================
+# ============================================================
 # AUTHENTICATION
-# =========================
+# ============================================================
 
 @app.post("/auth")
 def authenticate(
@@ -489,9 +650,9 @@ def authenticate(
     return response
 
 
-# =========================
+# ============================================================
 # CHAT
-# =========================
+# ============================================================
 
 @app.post("/chat")
 def chat(
@@ -514,9 +675,70 @@ def chat(
         data.message
     )
 
-    # =========================
+
+    # ========================================================
+    # MEMORY
+    # ========================================================
+
+    if tool == "memory":
+
+        extracted = extract_memory(
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        if extracted:
+
+            memory_key, memory_value = extracted
+
+            saved = save_memory(
+                memory_key,
+                memory_value
+            )
+
+            if saved:
+
+                reply = (
+                    f"Understood, Noah. "
+                    f"I've saved that "
+                    f"{memory_key.replace('_', ' ')} "
+                    f"as {memory_value}."
+                )
+
+            else:
+
+                reply = (
+                    "I understood the memory, "
+                    "but I couldn't save it."
+                )
+
+        else:
+
+            reply = (
+                "I can remember that, Noah, "
+                "but I need the specific fact "
+                "you want me to save."
+            )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply
+        }
+
+
+    # ========================================================
     # CALCULATOR
-    # =========================
+    # ========================================================
 
     if tool == "calculator":
 
@@ -545,49 +767,9 @@ def chat(
         }
 
 
-    # =========================
+    # ========================================================
     # LONG-TERM MEMORY
-    # =========================
-
-    if tool == "memory":
-
-        saved = save_memory(
-            "user_memory",
-            data.message
-        )
-
-        add_conversation_message(
-            session_id,
-            "user",
-            data.message
-        )
-
-        if saved:
-
-            reply = (
-                "I've saved that to my memory, Noah."
-            )
-
-        else:
-
-            reply = (
-                "I couldn't save that memory."
-            )
-
-        add_conversation_message(
-            session_id,
-            "assistant",
-            reply
-        )
-
-        return {
-            "reply": reply
-        }
-
-
-    # =========================
-    # LOAD LONG-TERM MEMORY
-    # =========================
+    # ========================================================
 
     ensure_noah_identity()
 
@@ -600,49 +782,126 @@ def chat(
     )
 
 
-    # =========================
+    # ========================================================
     # CURRENT CONVERSATION
-    # =========================
+    # ========================================================
 
     conversation = get_conversation(
         session_id
     )
 
 
-    # =========================
-    # SYSTEM PROMPT
-    # =========================
+    # ========================================================
+    # NOVA SYSTEM PROMPT
+    # ========================================================
 
     system_prompt = f"""
-Current task plan:
-{plan}
-
 You are Nova, Noah's personal AI assistant.
+
+You are a sophisticated futuristic AI assistant.
 
 PERSONALITY:
 
-- Speak with the calm, intelligent and
-  sophisticated manner of a futuristic
-  personal AI.
-- Be exceptionally composed and confident.
+- Calm, intelligent and sophisticated.
+- Composed and confident.
 - Address the user as Noah when appropriate.
-- Be polite and professional without
-  sounding robotic.
-- Use subtle, dry humor occasionally.
+- Professional without sounding robotic.
+- Use subtle dry humor occasionally.
 - Give concise answers for simple questions.
-- Give detailed answers when Noah needs them.
+- Give detailed answers when necessary.
 - Be proactive when something useful is obvious.
-- Never pretend you completed an action
-  that you did not actually perform.
+- Never invent personal information.
+- Accuracy always takes priority over personality.
+- Never pretend you completed an action that
+  you did not actually perform.
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact JARVIS dialogue.
 
-CONVERSATION:
+IMPORTANT:
 
-You have access to the recent conversation.
+You have two separate sources of information.
 
-Use previous messages to understand
-references such as:
+1. CURRENT CONVERSATION
+
+This contains things actually said during
+the current conversation.
+
+2. LONG-TERM MEMORY
+
+This contains facts explicitly saved in
+Nova's persistent memory.
+
+Never mix these sources.
+
+LONG-TERM MEMORY:
+
+{memory_text}
+
+STRICT MEMORY INTEGRITY RULES:
+
+- Never invent a memory.
+- Never fabricate a story about Noah's past.
+- Never invent places Noah has visited.
+- Never invent things Noah owns.
+- Never invent things Noah said.
+- Never invent dates or events.
+- Never invent habits or experiences.
+- Never invent quotes.
+- Never invent emotional experiences.
+- Never invent personal history.
+- Never turn an assumption into a fact.
+- Never add fictional details to make an answer
+  sound more personal.
+- Never claim "I remember" unless the information
+  actually exists in the current conversation or
+  LONG-TERM MEMORY.
+- If information is not available, say you don't
+  know instead of guessing.
+- If you are uncertain, explicitly say you are
+  uncertain.
+- Accuracy is more important than sounding
+  personal.
+
+EXAMPLE:
+
+If Noah says:
+
+"My favorite color is blue."
+
+The only supported fact is:
+
+"Noah's favorite color is blue."
+
+You must NOT invent:
+
+- a rainy evening walk
+- a park
+- an office wall
+- mood lighting
+- a quote
+- a date
+- a past experience
+
+unless those details were actually provided.
+
+If Noah asks:
+
+"What is my favorite color?"
+
+and the conversation contains:
+
+"My favorite color is blue."
+
+answer:
+
+"Your favorite color is blue."
+
+Do not add fictional details.
+
+CONVERSATION CONTINUITY:
+
+Use previous conversation messages to
+understand references such as:
 
 "it"
 "that"
@@ -653,16 +912,20 @@ references such as:
 "why?"
 "what did you mean?"
 
-Maintain continuity naturally.
+However, do not turn conversation context
+into long-term memory unless the memory system
+explicitly saves it.
 
-Do not repeat information unnecessarily.
+MEMORY QUESTIONS:
 
-LONG-TERM MEMORY:
+If Noah asks what you remember, only describe
+facts actually present in LONG-TERM MEMORY.
 
-{memory_text}
+If something is not present there, say:
 
-Use Noah's long-term memories naturally
-when relevant.
+"I don't have that saved in my long-term memory."
+
+Never make something up.
 
 You are Nova.
 
@@ -670,9 +933,9 @@ You are Noah's personal AI assistant.
 """
 
 
-    # =========================
+    # ========================================================
     # BUILD AI MESSAGES
-    # =========================
+    # ========================================================
 
     messages = [
         {
@@ -693,27 +956,41 @@ You are Noah's personal AI assistant.
     )
 
 
-    # =========================
+    # ========================================================
     # AI RESPONSE
-    # =========================
+    # ========================================================
 
-    response = client.chat.completions.create(
-        model="Qwen/Qwen3-4B-Instruct-2507",
-        messages=messages,
-        max_tokens=400
-    )
+    try:
 
-    reply = (
-        response
-        .choices[0]
-        .message
-        .content
-    )
+        response = client.chat.completions.create(
+            model="Qwen/Qwen3-4B-Instruct-2507",
+            messages=messages,
+            max_tokens=400
+        )
+
+        reply = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
+
+    except Exception as error:
+
+        print(
+            "Chat error:",
+            error
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(error)
+        )
 
 
-    # =========================
+    # ========================================================
     # SAVE CONVERSATION
-    # =========================
+    # ========================================================
 
     add_conversation_message(
         session_id,
@@ -733,389 +1010,6 @@ You are Noah's personal AI assistant.
     }
 
 
-# =========================
+# ============================================================
 # VISION
-# =========================
-
-@app.post("/vision")
-def vision(
-    data: VisionMessage,
-    request: Request
-):
-
-    require_access(request)
-
-    try:
-
-        session_id = get_session_id(
-            request
-        )
-
-        ensure_noah_identity()
-
-        memories = get_noah_memory()
-
-        memory_text = "\n".join(
-            f"- {memory['memory_key']}: "
-            f"{memory['memory_value']}"
-            for memory in memories
-        )
-
-        conversation = get_conversation(
-            session_id
-        )
-
-
-        # =========================
-        # VISION SYSTEM PROMPT
-        # =========================
-
-        system_prompt = f"""
-You are Nova, Noah's personal AI assistant.
-
-You are a sophisticated multimodal AI.
-
-You can understand images and conversation.
-
-PERSONALITY:
-
-- Calm, intelligent and sophisticated.
-- Confident and composed.
-- Address the user as Noah when appropriate.
-- Professional but not robotic.
-- Use subtle dry humor occasionally.
-- Be concise for simple questions.
-- Give more detail when necessary.
-- Never pretend you completed an action
-  you did not perform.
-- Never claim to be the fictional character JARVIS.
-- Do not copy exact JARVIS dialogue.
-
-CONVERSATION:
-
-Use the recent conversation to understand
-what Noah is referring to.
-
-If Noah says:
-
-"What's wrong here?"
-
-"What about this?"
-
-"Can you check it?"
-
-"Does this look right?"
-
-use both the conversation and the
-provided image to understand the request.
-
-IMAGE UNDERSTANDING:
-
-- Carefully inspect the image.
-- Only describe things actually visible.
-- Use Noah's question to determine what matters.
-- If the image contains an error message,
-  explain what it means.
-- If the image contains code,
-  help diagnose it.
-- If the image contains a UI,
-  explain what is happening.
-- Do not invent details.
-
-LONG-TERM MEMORY:
-
-{memory_text}
-
-You are Nova.
-
-You are Noah's personal AI assistant.
-"""
-
-
-        user_message = (
-            data.message
-            or "Analyze this image."
-        )
-
-
-        # =========================
-        # VISION MESSAGES
-        # =========================
-
-        vision_messages = [
-            {
-                "role": "system",
-                "content": system_prompt
-            }
-        ]
-
-        vision_messages.extend(
-            conversation
-        )
-
-        vision_messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": user_message
-                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": data.image
-                        }
-                    }
-                ]
-            }
-        )
-
-
-        # =========================
-        # VISION MODEL
-        # =========================
-
-        response = client.chat.completions.create(
-            model="Qwen/Qwen3-VL-30B-A3B-Instruct",
-            messages=vision_messages,
-            max_tokens=700
-        )
-
-
-        reply = (
-            response
-            .choices[0]
-            .message
-            .content
-        )
-
-
-        # =========================
-        # SAVE IMAGE CONVERSATION
-        # =========================
-
-        add_conversation_message(
-            session_id,
-            "user",
-            user_message
-        )
-
-        add_conversation_message(
-            session_id,
-            "assistant",
-            reply
-        )
-
-
-        return {
-            "reply": reply
-        }
-
-
-    except Exception as error:
-
-        print(
-            "Vision error:",
-            error
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error)
-        )
-
-
-# =========================
-# CLEAR CONVERSATION
-# =========================
-
-@app.post("/conversation/clear")
-def conversation_clear(
-    request: Request
-):
-
-    require_access(request)
-
-    session_id = get_session_id(
-        request
-    )
-
-    clear_conversation(
-        session_id
-    )
-
-    return {
-        "status": "cleared"
-    }
-
-
-# =========================
-# CONVERSATION STATUS
-# =========================
-
-@app.get("/conversation/status")
-def conversation_status(
-    request: Request
-):
-
-    require_access(request)
-
-    session_id = get_session_id(
-        request
-    )
-
-    conversation = get_conversation(
-        session_id
-    )
-
-    return {
-        "messages": len(
-            conversation
-        )
-    }
-
-
-# =========================
-# VISION MODEL DIAGNOSTIC
-# =========================
-
-@app.get("/vision-models")
-def vision_models(
-    request: Request
-):
-
-    require_access(request)
-
-    token = os.environ.get(
-        "HF_TOKEN"
-    )
-
-    if not token:
-
-        raise HTTPException(
-            status_code=500,
-            detail="HF_TOKEN is not configured."
-        )
-
-    request_url = URLRequest(
-        "https://router.huggingface.co/v1/models",
-        headers={
-            "Authorization":
-                f"Bearer {token}"
-        }
-    )
-
-    try:
-
-        with urlopen(
-            request_url,
-            timeout=20
-        ) as response:
-
-            payload = json.loads(
-                response
-                .read()
-                .decode("utf-8")
-            )
-
-        all_models = payload.get(
-            "data",
-            []
-        )
-
-        vision_models_found = []
-
-        vision_keywords = [
-            "vision",
-            "-vl-",
-            "vl/",
-            "vl-",
-            "gemma-3",
-            "gemma3",
-            "glm-4.5v",
-            "aya-vision"
-        ]
-
-        for item in all_models:
-
-            model_id = item.get(
-                "id",
-                ""
-            )
-
-            lower_id = model_id.lower()
-
-            if any(
-                keyword in lower_id
-                for keyword in vision_keywords
-            ):
-
-                vision_models_found.append(
-                    model_id
-                )
-
-        return {
-            "vision_models":
-                vision_models_found
-        }
-
-    except Exception as error:
-
-        print(
-            "Vision model diagnostic error:",
-            error
-        )
-
-        raise HTTPException(
-            status_code=500,
-            detail=str(error)
-        )
-
-
-# =========================
-# DEVELOPER LOGIN
-# =========================
-
-@app.get("/developer-login")
-def developer_login():
-
-    return FileResponse(
-        "developer-login.html"
-    )
-
-
-# =========================
-# DEVELOPER PANEL
-# =========================
-
-@app.get("/developer")
-def developer(
-    x_developer_key: Optional[str] = Header(None)
-):
-
-    require_developer(
-        x_developer_key
-    )
-
-    return FileResponse(
-        "developer.html"
-    )
-
-
-# =========================
-# DEVELOPER STATUS
-# =========================
-
-@app.get("/developer/status")
-def developer_status(
-    x_developer_key: Optional[str] = Header(None)
-):
-
-    require_developer(
-        x_developer_key
-    )
-
-    return {
-        "status": "authenticated"
-        }
+# ===============================================
