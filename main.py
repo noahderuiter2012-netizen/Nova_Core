@@ -1429,7 +1429,7 @@ Long-term memory:
             "reply": reply
         }
 
-    except Exception as error:
+        except Exception as error:
 
         print(
             "Vision error:",
@@ -1438,9 +1438,8 @@ Long-term memory:
 
         raise HTTPException(
             status_code=500,
-            detail="Nova encountered a 
- vision error."
-         )
+            detail="Nova encountered a vision error."
+        )
  
          
         
