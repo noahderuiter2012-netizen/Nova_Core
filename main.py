@@ -481,98 +481,294 @@ def is_memory_request(
     )
 
 
+# # ============================================================
+# NOVA STRUCTURED ACTION PLANNER
 # ============================================================
-# NOVA PLANNER
-# ============================================================
 
-def nova_plan(
-    message: str
-):
+def nova_plan(message: str):
+    """
+    Converts a user request into a safe, structured plan.
 
-    text = message.lower()
+    IMPORTANT:
+    This function does NOT decide whether an action is allowed.
+    The permission engine remains the authority.
+    """
 
+    text = message.strip()
+    lower = text.lower()
 
+    # --------------------------------------------------------
     # MEMORY
+    # --------------------------------------------------------
+
     if is_memory_request(message):
+        return {
+            "type": "memory",
+            "action": None,
+            "target": None,
+            "permission": None
+        }
 
-        return "memory"
+    # --------------------------------------------------------
+    # OPEN APP
+    # --------------------------------------------------------
 
+    app_match = re.search(
+        r"(?:open|launch|start)\s+(.+)",
+        text,
+        re.IGNORECASE
+    )
 
-    # CALCULATOR
-    if any(
-        word in text
-        for word in [
-            "calculate",
-            "what is",
-            "how much is",
-            "multiply",
-            "divide",
-            "plus",
-            "minus"
-        ]
+    if app_match:
+
+        target = app_match.group(1).strip()
+
+        return {
+            "type": "action",
+            "action": "open_app",
+            "target": target,
+            "permission": get_action_permission("open_app")
+        }
+
+    # --------------------------------------------------------
+    # OPEN WEBSITE
+    # --------------------------------------------------------
+
+    website_match = re.search(
+        r"(?:open|go to|visit)\s+"
+        r"(https?://\S+|www\.\S+|\S+\.(?:com|net|org|nl|io))",
+        text,
+        re.IGNORECASE
+    )
+
+    if website_match:
+
+        target = website_match.group(1).strip()
+
+        return {
+            "type": "action",
+            "action": "open_website",
+            "target": target,
+            "permission": get_action_permission(
+                "open_website"
+            )
+        }
+
+    # --------------------------------------------------------
+    # TIMER
+    # --------------------------------------------------------
+
+    if (
+        "timer" in lower
+        or "countdown" in lower
     ):
 
-        return "calculator"
+        return {
+            "type": "action",
+            "action": "set_timer",
+            "target": text,
+            "permission": get_action_permission(
+                "set_timer"
+            )
+        }
 
+    # --------------------------------------------------------
+    # SEND MESSAGE
+    # --------------------------------------------------------
 
+    if (
+        "send a message" in lower
+        or "send message" in lower
+        or lower.startswith("text ")
+        or "text " in lower
+    ):
+
+        return {
+            "type": "action",
+            "action": "send_message",
+            "target": text,
+            "permission": get_action_permission(
+                "send_message"
+            )
+        }
+
+    # --------------------------------------------------------
+    # SEND EMAIL
+    # --------------------------------------------------------
+
+    if (
+        "send an email" in lower
+        or "send email" in lower
+        or "email " in lower
+    ):
+
+        return {
+            "type": "action",
+            "action": "send_email",
+            "target": text,
+            "permission": get_action_permission(
+                "send_email"
+            )
+        }
+
+    # --------------------------------------------------------
+    # DELETE FILE
+    # --------------------------------------------------------
+
+    if (
+        "delete file" in lower
+        or "delete the file" in lower
+        or "remove file" in lower
+    ):
+
+        return {
+            "type": "action",
+            "action": "delete_file",
+            "target": text,
+            "permission": get_action_permission(
+                "delete_file"
+            )
+        }
+
+    # --------------------------------------------------------
+    # CHANGE SETTING
+    # --------------------------------------------------------
+
+    if (
+        "change setting" in lower
+        or "change the setting" in lower
+        or "change settings" in lower
+    ):
+
+        return {
+            "type": "action",
+            "action": "change_setting",
+            "target": text,
+            "permission": get_action_permission(
+                "change_setting"
+            )
+        }
+
+    # --------------------------------------------------------
+    # SECURITY ACTIONS
+    # --------------------------------------------------------
+
+    if (
+        "change security" in lower
+        or "disable security" in lower
+        or "turn off security" in lower
+    ):
+
+        action = (
+            "disable_security"
+            if (
+                "disable" in lower
+                or "turn off" in lower
+            )
+            else "change_security"
+        )
+
+        return {
+            "type": "action",
+            "action": action,
+            "target": text,
+            "permission": get_action_permission(
+                action
+            )
+        }
+
+    # --------------------------------------------------------
     # WEB SEARCH
+    # --------------------------------------------------------
+
     if any(
-        word in text
-        for word in [
-            "search",
+        phrase in lower
+        for phrase in [
+            "search for",
+            "search the web",
             "look up",
-            "latest",
-            "news",
+            "latest news",
             "what happened today"
         ]
     ):
 
-        return "web_search"
+        return {
+            "type": "action",
+            "action": "search_web",
+            "target": text,
+            "permission": get_action_permission(
+                "search_web"
+            )
+        }
 
+    # --------------------------------------------------------
+    # NORMAL CHAT
+    # --------------------------------------------------------
 
-    # TIMER
-    if any(
-        word in text
-        for word in [
-            "timer",
-            "countdown"
-        ]
-    ):
-
-        return "timer"
-
-
-    return "chat"
+    return {
+        "type": "chat",
+        "action": None,
+        "target": None,
+        "permission": None
+    }
 
 
 def nova_execute(
-    plan: str,
+    plan,
     message: str
 ):
+    """
+    Converts a structured plan into an execution request.
 
-    if plan == "chat":
+    This function still does NOT perform real device actions.
+    """
 
+    if not plan:
         return None
 
-    if plan == "calculator":
-
-        return "calculator"
-
-    if plan == "web_search":
-
-        return "web_search"
-
-    if plan == "memory":
-
+    if plan["type"] == "memory":
         return "memory"
 
-    if plan == "timer":
+    if plan["type"] == "chat":
+        return None
 
-        return "timer"
+    if plan["type"] == "action":
+
+        action = plan["action"]
+
+        # Backend permission check.
+        permission = get_action_permission(
+            action
+        )
+
+        if permission == "blocked":
+
+            return {
+                "status": "blocked",
+                "action": action,
+                "target": plan["target"],
+                "permission": "blocked"
+            }
+
+        if permission == "high":
+
+            return {
+                "status": "confirmation_required",
+                "action": action,
+                "target": plan["target"],
+                "permission": "high"
+            }
+
+        if permission == "low":
+
+            return {
+                "status": "allowed",
+                "action": action,
+                "target": plan["target"],
+                "permission": "low"
+            }
 
     return None
-
-
 # ============================================================
 # CALCULATOR
 # ============================================================
