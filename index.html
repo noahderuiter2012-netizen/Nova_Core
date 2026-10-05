@@ -1,680 +1,511 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Nova</title>
-
-<style>
-* {
-    box-sizing: border-box;
-}
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    background:
-        radial-gradient(circle at 50% 38%, rgba(0,120,255,.18), transparent 32%),
-        #020711;
-    color: white;
-    font-family: Arial, sans-serif;
-    overflow: hidden;
-}
-
-.app {
-    min-height: 100vh;
-    display: flex;
-}
-
-.sidebar {
-    width: 220px;
-    border-right: 1px solid rgba(0,150,255,.2);
-    background: rgba(1,7,17,.8);
-    padding: 25px 15px;
-}
-
-.logo {
-    font-size: 27px;
-    letter-spacing: 7px;
-    font-weight: bold;
-    margin: 5px 15px 40px;
-}
-
-.logo span {
-    color: #00d9ff;
-    text-shadow: 0 0 20px #00d9ff;
-}
-
-.nav {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.nav button {
-    border: 1px solid transparent;
-    background: transparent;
-    color: #91a4bd;
-    padding: 14px;
-    border-radius: 13px;
-    text-align: left;
-    cursor: pointer;
-}
-
-.nav button:hover,
-.nav button.active {
-    background: rgba(0,120,255,.12);
-    border-color: rgba(0,150,255,.2);
-    color: white;
-}
-
-.profile {
-    position: absolute;
-    bottom: 20px;
-    width: 190px;
-    padding: 14px;
-    border-radius: 15px;
-    border: 1px solid rgba(0,150,255,.2);
-    background: rgba(5,20,40,.6);
-}
-
-.profile-name {
-    font-weight: bold;
-}
-
-.profile-sub {
-    color: #71859f;
-    font-size: 12px;
-    margin-top: 4px;
-}
-
-.main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.topbar {
-    height: 70px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: 0 25px;
-    border-bottom: 1px solid rgba(0,150,255,.12);
-}
-
-.status {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    color: #a9bad0;
-    font-size: 13px;
-}
-
-.status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #2dff9b;
-    box-shadow: 0 0 12px #2dff9b;
-}
-
-.workspace {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    overflow-y: auto;
-    padding: 20px 15px;
-}
-
-.core-container {
-    width: 300px;
-    height: 300px;
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: -10px;
-    flex-shrink: 0;
-}
-
-.core {
-    width: 145px;
-    height: 145px;
-    border-radius: 50%;
-    position: relative;
-    z-index: 5;
-
-    background:
-        radial-gradient(
-            circle at 32% 25%,
-            #eaffff 0%,
-            #6beeff 8%,
-            #159cff 25%,
-            #0751c7 48%,
-            #031c58 72%,
-            #010817 100%
-        );
-
-    border: 1px solid rgba(150,240,255,.9);
-
-    box-shadow:
-        inset 10px 8px 20px rgba(220,255,255,.35),
-        inset -20px -25px 35px rgba(0,5,35,.8),
-        0 0 30px rgba(0,220,255,.8),
-        0 0 70px rgba(0,110,255,.55),
-        0 0 120px rgba(0,80,255,.25);
-
-    animation: float 4s ease-in-out infinite;
-}
-
-.core::before {
-    content: "";
-    position: absolute;
-    width: 180px;
-    height: 42px;
-    left: -18px;
-    top: 55px;
-    border-radius: 50%;
-
-    background:
-        linear-gradient(
-            90deg,
-            transparent,
-            rgba(0,220,255,.3),
-            rgba(180,250,255,.75),
-            rgba(0,150,255,.3),
-            transparent
-        );
-
-    filter: blur(7px);
-    transform: rotate(-18deg);
-    animation: energy 3s ease-in-out infinite;
-}
-
-.core::after {
-    content: "";
-    position: absolute;
-    width: 55px;
-    height: 30px;
-    left: 30px;
-    top: 20px;
-    border-radius: 50%;
-    background: rgba(235,255,255,.45);
-    filter: blur(9px);
-    transform: rotate(-25deg);
-}
-
-.ring {
-    position: absolute;
-    border-radius: 50%;
-    border: 1px solid rgba(0,170,255,.4);
-}
-
-.ring.one {
-    width: 205px;
-    height: 205px;
-    border-left-color: transparent;
-    border-bottom-color: transparent;
-    animation: rotate 10s linear infinite;
-}
-
-.ring.two {
-    width: 250px;
-    height: 250px;
-    border-right-color: transparent;
-    border-top-color: transparent;
-    animation: rotateReverse 13s linear infinite;
-}
-
-.ring.three {
-    width: 285px;
-    height: 285px;
-    border-left-color: transparent;
-    border-right-color: transparent;
-    opacity: .35;
-    animation: rotate 18s linear infinite;
-}
-
-.core-container.thinking .core {
-    animation:
-        thinkPulse 1s ease-in-out infinite alternate,
-        float 2.5s ease-in-out infinite;
-
-    box-shadow:
-        inset 10px 8px 20px rgba(220,255,255,.4),
-        inset -20px -25px 35px rgba(0,5,35,.8),
-        0 0 40px rgba(0,235,255,1),
-        0 0 85px rgba(0,145,255,.9),
-        0 0 150px rgba(0,100,255,.55);
-}
-
-.core-container.thinking .ring.one {
-    animation-duration: 2s;
-}
-
-.core-container.thinking .ring.two {
-    animation-duration: 3s;
-}
-
-.core-container.thinking .ring.three {
-    animation-duration: 5s;
-}
-
-@keyframes float {
-    0%,100% {
-        transform: translateY(0);
-    }
-
-    50% {
-        transform: translateY(-9px);
-    }
-}
-
-@keyframes rotate {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes rotateReverse {
-    from {
-        transform: rotate(360deg);
-    }
-
-    to {
-        transform: rotate(0deg);
-    }
-}
-
-@keyframes energy {
-    0%,100% {
-        transform: translateX(-8px) rotate(-18deg);
-    }
-
-    50% {
-        transform: translateX(8px) rotate(-18deg);
-    }
-}
-
-@keyframes thinkPulse {
-    from {
-        transform: scale(.92);
-    }
-
-    to {
-        transform: scale(1.08);
-    }
-}
-
-.greeting {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.greeting h1 {
-    margin: 0 0 8px;
-    font-size: 30px;
-}
-
-.greeting h1 span {
-    color: #159cff;
-    text-shadow: 0 0 15px rgba(0,150,255,.6);
-}
-
-.greeting p {
-    margin: 0;
-    color: #8194ad;
-}
-
-.chat-area {
-    width: min(750px, 90%);
-}
-
-.input {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-
-    padding: 8px;
-
-    border-radius: 30px;
-
-    border: 1px solid rgba(0,157,255,.65);
-
-    background: rgba(3,17,36,.9);
-
-    box-shadow: 0 0 25px rgba(0,105,255,.12);
-}
-
-input {
-    flex: 1;
-    min-width: 0;
-
-    padding: 13px;
-
-    border: none;
-    outline: none;
-
-    background: transparent;
-
-    color: white;
-
-    font-size: 15px;
-}
-
-input::placeholder {
-    color: #71859f;
-}
-
-.icon-button {
-    width: 42px;
-    height: 42px;
-
-    flex-shrink: 0;
-
-    border: none;
-    border-radius: 50%;
-
-    background: transparent;
-
-    color: #91a9c5;
-
-    font-size: 18px;
-
-    cursor: pointer;
-}
-
-.icon-button:hover {
-    color: white;
-    background: rgba(0,120,255,.15);
-}
-
-.icon-button.listening {
-    color: #00d9ff;
-    background: rgba(0,150,255,.2);
-    box-shadow: 0 0 18px rgba(0,200,255,.45);
-}
-
-button.send {
-    width: 46px;
-    height: 46px;
-
-    flex-shrink: 0;
-
-    border: none;
-    border-radius: 50%;
-
-    background: linear-gradient(145deg,#28a7ff,#006eea);
-
-    color: white;
-
-    font-size: 20px;
-
-    cursor: pointer;
-
-    box-shadow: 0 0 20px rgba(0,135,255,.5);
-}
-
-button.send:active {
-    transform: scale(.94);
-}
-
-button.send:disabled {
-    opacity: .5;
-    cursor: default;
-}
-
-.voice-status {
-    height: 24px;
-    margin-top: 8px;
-
-    text-align: center;
-
-    color: #7f9ab7;
-
-    font-size: 12px;
-
-    opacity: 0;
-
-    transition: opacity .2s;
-}
-
-.voice-status.visible {
-    opacity: 1;
-}
-
-/* PHOTO PREVIEW */
-
-.photo-preview {
-    display: none;
-    margin-top: 12px;
-    position: relative;
-    width: fit-content;
-    max-width: 100%;
-}
-
-.photo-preview.visible {
-    display: block;
-}
-
-.photo-preview img {
-    display: block;
-
-    max-width: 240px;
-    max-height: 180px;
-
-    border-radius: 14px;
-
-    border: 1px solid rgba(0,160,255,.4);
-
-    box-shadow:
-        0 0 25px rgba(0,100,255,.2);
-}
-
-.remove-photo {
-    position: absolute;
-
-    top: -8px;
-    right: -8px;
-
-    width: 26px;
-    height: 26px;
-
-    border: none;
-    border-radius: 50%;
-
-    background: #087fe8;
-
-    color: white;
-
-    cursor: pointer;
-}
-
-#photoInput {
-    display: none;
-}
-
-#result {
-    margin-top: 8px;
-    padding: 18px;
-
-    border-radius: 15px;
-
-    background: rgba(3,15,30,.75);
-
-    border: 1px solid rgba(0,140,255,.15);
-
-    color: #dce9f8;
-
-    line-height: 1.5;
-
-    white-space: pre-wrap;
-
-    display: none;
-
-    max-height: 180px;
-    overflow-y: auto;
-}
-
-@media (max-width: 700px) {
-
-    .sidebar {
-        display: none;
-    }
-
-    .workspace {
-        padding: 15px;
-    }
-
-    .core-container {
-        transform: scale(.78);
-        margin-top: -30px;
-        margin-bottom: -35px;
-    }
-
-    .greeting h1 {
-        font-size: 26px;
-    }
-
-    .chat-area {
-        width: 100%;
-    }
-}
-</style>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Nova</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(
+                    circle at center,
+                    #07152b 0%,
+                    #020712 45%,
+                    #00030a 100%
+                );
+            color: #eaf7ff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .app {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 230px;
+            padding: 24px 18px;
+            background: rgba(3, 10, 22, 0.75);
+            border-right: 1px solid rgba(0, 180, 255, 0.15);
+            backdrop-filter: blur(20px);
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 4px;
+            color: #7cddff;
+            margin-bottom: 35px;
+        }
+
+        .side-item {
+            padding: 13px;
+            margin-bottom: 8px;
+            border-radius: 12px;
+            color: #91a9ba;
+        }
+
+        .side-item.active {
+            color: #e8faff;
+            background: rgba(0, 150, 255, 0.12);
+        }
+
+        /* MAIN */
+
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .topbar {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 25px;
+            border-bottom: 1px solid rgba(0, 180, 255, 0.1);
+        }
+
+        .status {
+            color: #6fdcff;
+            font-size: 13px;
+        }
+
+        .status::before {
+            content: "";
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            margin-right: 8px;
+            border-radius: 50%;
+            background: #4de1ff;
+            box-shadow: 0 0 12px #4de1ff;
+        }
+
+        /* CHAT */
+
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            padding-bottom: 170px;
+        }
+
+        .message {
+            max-width: 850px;
+            margin: 0 auto 18px auto;
+            padding: 15px 18px;
+            border-radius: 16px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .user {
+            background: rgba(0, 120, 255, 0.15);
+            border: 1px solid rgba(0, 150, 255, 0.18);
+        }
+
+        .nova {
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(120, 200, 255, 0.08);
+        }
+
+        /* ORB */
+
+        .orb-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 190px;
+            height: 190px;
+            pointer-events: none;
+            opacity: 0.75;
+        }
+
+        .orb {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+
+            width: 80px;
+            height: 80px;
+
+            border-radius: 50%;
+
+            background:
+                radial-gradient(
+                    circle at 35% 30%,
+                    #e8fbff,
+                    #42cfff 20%,
+                    #087cff 55%,
+                    #003b9e 100%
+                );
+
+            box-shadow:
+                0 0 20px #16baff,
+                0 0 50px rgba(0, 160, 255, 0.8),
+                0 0 100px rgba(0, 100, 255, 0.45);
+
+            transition: 0.3s;
+        }
+
+        .ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(50, 190, 255, 0.3);
+            border-radius: 50%;
+        }
+
+        .ring.one {
+            width: 115px;
+            height: 115px;
+        }
+
+        .ring.two {
+            width: 150px;
+            height: 150px;
+        }
+
+        .ring.three {
+            width: 190px;
+            height: 190px;
+        }
+
+        .thinking .orb {
+            animation: pulse 1.2s infinite;
+        }
+
+        .thinking .ring.one {
+            animation: rotate 3s linear infinite;
+        }
+
+        .thinking .ring.two {
+            animation: rotateReverse 4s linear infinite;
+        }
+
+        .thinking .ring.three {
+            animation: rotate 6s linear infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) scale(1.15);
+            }
+        }
+
+        @keyframes rotate {
+            from {
+                transform:
+                    translate(-50%, -50%)
+                    rotate(0deg);
+            }
+
+            to {
+                transform:
+                    translate(-50%, -50%)
+                    rotate(360deg);
+            }
+        }
+
+        @keyframes rotateReverse {
+            from {
+                transform:
+                    translate(-50%, -50%)
+                    rotate(360deg);
+            }
+
+            to {
+                transform:
+                    translate(-50%, -50%)
+                    rotate(0deg);
+            }
+        }
+
+        /* INPUT */
+
+        .input-area {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(900px, calc(100% - 30px));
+            z-index: 10;
+        }
+
+        .preview {
+            display: none;
+            margin-bottom: 10px;
+            position: relative;
+            width: 120px;
+        }
+
+        .preview.show {
+            display: block;
+        }
+
+        .preview img {
+            width: 120px;
+            height: 90px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid rgba(70, 190, 255, 0.4);
+        }
+
+        #removePhoto {
+            position: absolute;
+            right: -8px;
+            top: -8px;
+
+            width: 24px;
+            height: 24px;
+
+            border: none;
+            border-radius: 50%;
+
+            background: #10243a;
+            color: white;
+
+            cursor: pointer;
+        }
+
+        .input-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            padding: 9px;
+
+            background: rgba(5, 15, 30, 0.92);
+            border: 1px solid rgba(80, 180, 255, 0.2);
+
+            border-radius: 18px;
+
+            backdrop-filter: blur(20px);
+
+            box-shadow:
+                0 10px 50px rgba(0, 0, 0, 0.4);
+        }
+
+        #messageInput {
+            flex: 1;
+
+            min-width: 0;
+
+            border: none;
+            outline: none;
+
+            background: transparent;
+
+            color: white;
+
+            font-size: 16px;
+
+            padding: 12px;
+        }
+
+        button {
+            flex-shrink: 0;
+
+            width: 43px;
+            height: 43px;
+
+            border: none;
+            border-radius: 13px;
+
+            background: rgba(30, 120, 200, 0.15);
+
+            color: #a9eaff;
+
+            cursor: pointer;
+
+            font-size: 18px;
+
+            transition: 0.2s;
+        }
+
+        button:hover {
+            background: rgba(30, 150, 255, 0.3);
+        }
+
+        #sendButton {
+            background: linear-gradient(
+                135deg,
+                #087cff,
+                #14c8ff
+            );
+
+            color: white;
+
+            box-shadow:
+                0 0 20px rgba(0, 150, 255, 0.35);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* MOBILE */
+
+        @media (max-width: 700px) {
+
+            .sidebar {
+                display: none;
+            }
+
+            .topbar {
+                padding: 0 15px;
+            }
+
+            #chat {
+                padding: 15px;
+            }
+
+            .orb-container {
+                transform:
+                    translate(-50%, -50%)
+                    scale(0.8);
+            }
+
+            .input-area {
+                width: calc(100% - 20px);
+                bottom: 10px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
 <div class="app">
 
+    <!-- SIDEBAR -->
+
     <aside class="sidebar">
 
         <div class="logo">
-            N<span>O</span>VA
+            NOVA
         </div>
 
-        <div class="nav">
-
-            <button class="active">
-                ◉ &nbsp; Chat
-            </button>
-
-            <button>
-                ✦ &nbsp; Memories
-            </button>
-
-            <button>
-                ⚙ &nbsp; Tools
-            </button>
-
-            <button>
-                ◈ &nbsp; Settings
-            </button>
-
+        <div class="side-item active">
+            Chat
         </div>
 
-        <div class="profile">
+        <div class="side-item">
+            Memory
+        </div>
 
-            <div class="profile-name">
-                Noah
-            </div>
+        <div class="side-item">
+            Tools
+        </div>
 
-            <div class="profile-sub">
-                My personal AI
-            </div>
-
+        <div class="side-item">
+            Developer
         </div>
 
     </aside>
+
+
+    <!-- MAIN -->
 
     <main class="main">
 
         <div class="topbar">
 
+            <div>
+                Nova
+            </div>
+
             <div class="status">
-
-                <div class="status-dot"></div>
-
-                Nova Online
-
+                Online
             </div>
 
         </div>
 
-        <section class="workspace">
+
+        <!-- ORB -->
+
+        <div
+            id="orbContainer"
+            class="orb-container"
+        >
+
+            <div class="ring one"></div>
+            <div class="ring two"></div>
+            <div class="ring three"></div>
+
+            <div class="orb"></div>
+
+        </div>
+
+
+        <!-- CHAT -->
+
+        <div id="chat"></div>
+
+
+        <!-- INPUT -->
+
+        <div class="input-area">
+
+            <!-- PHOTO PREVIEW -->
 
             <div
-                class="core-container"
-                id="coreContainer"
+                id="photoPreview"
+                class="preview"
             >
 
-                <div class="ring one"></div>
-                <div class="ring two"></div>
-                <div class="ring three"></div>
+                <img
+                    id="previewImage"
+                    src=""
+                    alt="Selected image"
+                >
 
-                <div class="core"></div>
-
-            </div>
-
-            <div class="greeting">
-
-                <h1>
-                    Hello, <span>Noah.</span>
-                </h1>
-
-                <p>
-                    Your personal AI assistant is ready.
-                </p>
+                <button
+                    id="removePhoto"
+                    type="button"
+                >
+                    ×
+                </button>
 
             </div>
 
-            <div class="chat-area">
 
-                <div class="input">
+            <div class="input-box">
 
-                    <button
-                        id="voiceButton"
-                        class="icon-button"
-                        type="button"
-                        title="Voice input"
-                    >
-                        🎙
-                    </button>
+                <!-- PHOTO -->
 
-                    <button
-                        id="photoButton"
-                        class="icon-button"
-                        type="button"
-                        title="Add photo"
-                    >
-                        📷
-                    </button>
-
-                    <input
-                        id="message"
-                        type="text"
-                        placeholder="Ask Nova anything..."
-                        autocomplete="off"
-                    >
-
-                    <button
-                        id="send"
-                        class="send"
-                        type="button"
-                        title="Send"
-                    >
-                        ↑
-                    </button>
-
-                </div>
+                <button
+                    id="photoButton"
+                    type="button"
+                    title="Add photo"
+                >
+                    📷
+                </button>
 
                 <input
                     id="photoInput"
@@ -682,114 +513,356 @@ button.send:disabled {
                     accept="image/*"
                 >
 
-                <div
-                    id="photoPreview"
-                    class="photo-preview"
+
+                <!-- VOICE -->
+
+                <button
+                    id="voiceButton"
+                    type="button"
+                    title="Voice input"
+                >
+                    🎙️
+                </button>
+
+
+                <!-- TEXT -->
+
+                <input
+                    id="messageInput"
+                    type="text"
+                    placeholder="Talk to Nova..."
+                    autocomplete="off"
                 >
 
-                    <img
-                        id="previewImage"
-                        alt="Selected photo"
-                    >
 
-                    <button
-                        id="removePhoto"
-                        class="remove-photo"
-                        type="button"
-                    >
-                        ×
-                    </button>
+                <!-- SEND -->
 
-                </div>
-
-                <div
-                    id="voiceStatus"
-                    class="voice-status"
+                <button
+                    id="sendButton"
+                    type="button"
+                    title="Send"
                 >
-                    Listening...
-                </div>
-
-                <div id="result"></div>
+                    ➤
+                </button>
 
             </div>
 
-        </section>
+        </div>
 
     </main>
 
 </div>
 
+
 <script>
 
-const message =
-    document.getElementById("message");
+    const chat =
+        document.getElementById("chat");
 
-const send =
-    document.getElementById("send");
+    const input =
+        document.getElementById("messageInput");
 
-const result =
-    document.getElementById("result");
+    const sendButton =
+        document.getElementById("sendButton");
 
-const coreContainer =
-    document.getElementById("coreContainer");
+    const voiceButton =
+        document.getElementById("voiceButton");
 
-const voiceButton =
-    document.getElementById("voiceButton");
+    const photoButton =
+        document.getElementById("photoButton");
 
-const voiceStatus =
-    document.getElementById("voiceStatus");
+    const photoInput =
+        document.getElementById("photoInput");
 
-const photoButton =
-    document.getElementById("photoButton");
+    const photoPreview =
+        document.getElementById("photoPreview");
 
-const photoInput =
-    document.getElementById("photoInput");
+    const previewImage =
+        document.getElementById("previewImage");
 
-const photoPreview =
-    document.getElementById("photoPreview");
+    const removePhoto =
+        document.getElementById("removePhoto");
 
-const previewImage =
-    document.getElementById("previewImage");
-
-const removePhoto =
-    document.getElementById("removePhoto");
+    const orbContainer =
+        document.getElementById("orbContainer");
 
 
-/* CHAT */
+    let selectedPhoto = null;
 
-send.addEventListener(
-    "click",
-    async function() {
+
+    // =========================
+    // ADD MESSAGE
+    // =========================
+
+    function addMessage(
+        text,
+        type
+    ) {
+
+        const message =
+            document.createElement("div");
+
+        message.className =
+            "message " + type;
+
+        message.textContent =
+            text;
+
+        chat.appendChild(message);
+
+        chat.scrollTop =
+            chat.scrollHeight;
+    }
+
+
+    // =========================
+    // THINKING
+    // =========================
+
+    function setThinking(
+        thinking
+    ) {
+
+        if (thinking) {
+
+            orbContainer.classList.add(
+                "thinking"
+            );
+
+        } else {
+
+            orbContainer.classList.remove(
+                "thinking"
+            );
+
+        }
+    }
+
+
+    // =========================
+    // PHOTO BUTTON
+    // =========================
+
+    photoButton.addEventListener(
+        "click",
+        function () {
+
+            photoInput.click();
+
+        }
+    );
+
+
+    // =========================
+    // PHOTO SELECTED
+    // =========================
+
+    photoInput.addEventListener(
+        "change",
+        function () {
+
+            const file =
+                photoInput.files[0];
+
+            if (!file) {
+                return;
+            }
+
+            selectedPhoto = file;
+
+            const imageURL =
+                URL.createObjectURL(file);
+
+            previewImage.src =
+                imageURL;
+
+            photoPreview.classList.add(
+                "show"
+            );
+
+        }
+    );
+
+
+    // =========================
+    // REMOVE PHOTO
+    // =========================
+
+    removePhoto.addEventListener(
+        "click",
+        function () {
+
+            selectedPhoto = null;
+
+            photoInput.value = "";
+
+            previewImage.src = "";
+
+            photoPreview.classList.remove(
+                "show"
+            );
+
+        }
+    );
+
+
+    // =========================
+    // SEND MESSAGE
+    // =========================
+
+    async function sendMessage() {
 
         const text =
-            message.value.trim();
+            input.value.trim();
 
-        if (!text) {
 
-            result.textContent =
-                "Type something first.";
-
-            result.style.display =
-                "block";
-
+        // Nothing to send
+        if (!text && !selectedPhoto) {
             return;
         }
 
-        send.disabled = true;
 
-        send.textContent = "...";
+        // Show user's message
+        if (text) {
 
-        coreContainer.classList.add(
-            "thinking"
-        );
+            addMessage(
+                text,
+                "user"
+            );
 
-        result.textContent =
-            "Nova is thinking...";
+        } else {
 
-        result.style.display =
-            "block";
+            addMessage(
+                "📷 Image",
+                "user"
+            );
+
+        }
+
+
+        input.value = "";
+
+        setThinking(true);
+
 
         try {
+
+            /*
+             * ========================
+             * IMAGE MODE
+             * ========================
+             */
+
+            if (selectedPhoto) {
+
+                const reader =
+                    new FileReader();
+
+
+                reader.onload =
+                    async function () {
+
+                        const imageData =
+                            reader.result;
+
+
+                        try {
+
+                            const response =
+                                await fetch(
+                                    "/vision",
+                                    {
+                                        method: "POST",
+
+                                        headers: {
+                                            "Content-Type":
+                                                "application/json"
+                                        },
+
+                                        body:
+                                            JSON.stringify({
+                                                message:
+                                                    text ||
+                                                    "Describe this image.",
+
+                                                image:
+                                                    imageData
+                                            })
+                                    }
+                                );
+
+
+                            if (!response.ok) {
+
+                                const errorText =
+                                    await response.text();
+
+                                throw new Error(
+                                    errorText ||
+                                    "Vision request failed."
+                                );
+
+                            }
+
+
+                            const data =
+                                await response.json();
+
+
+                            addMessage(
+                                data.reply ||
+                                "I couldn't analyze that image.",
+                                "nova"
+                            );
+
+
+                        } catch (error) {
+
+                            console.error(
+                                "Vision error:",
+                                error
+                            );
+
+                            addMessage(
+                                "I couldn't analyze the image. Check the Render logs for the vision error.",
+                                "nova"
+                            );
+
+                        } finally {
+
+                            selectedPhoto =
+                                null;
+
+                            photoInput.value =
+                                "";
+
+                            previewImage.src =
+                                "";
+
+                            photoPreview.classList.remove(
+                                "show"
+                            );
+
+                            setThinking(false);
+                        }
+
+                    };
+
+
+                reader.readAsDataURL(
+                    selectedPhoto
+                );
+
+
+                return;
+            }
+
+
+            /*
+             * ========================
+             * NORMAL CHAT MODE
+             * ========================
+             */
 
             const response =
                 await fetch(
@@ -802,123 +875,85 @@ send.addEventListener(
                                 "application/json"
                         },
 
-                        body: JSON.stringify({
-                            message: text
-                        })
+                        body:
+                            JSON.stringify({
+                                message: text
+                            })
                     }
                 );
+
+
+            if (!response.ok) {
+
+                const errorText =
+                    await response.text();
+
+                throw new Error(
+                    errorText ||
+                    "Chat request failed."
+                );
+
+            }
+
 
             const data =
                 await response.json();
 
-            if (!response.ok) {
 
-                throw new Error(
-                    data.detail ||
-                    "Nova returned an error."
-                );
-            }
+            addMessage(
+                data.reply ||
+                "I didn't receive a response.",
+                "nova"
+            );
 
-            result.textContent =
-                data.reply;
 
         } catch (error) {
 
-            result.textContent =
-                "Error: " +
-                error.message;
+            console.error(
+                "Chat error:",
+                error
+            );
+
+            addMessage(
+                "I couldn't connect to Nova.",
+                "nova"
+            );
 
         } finally {
 
-            send.disabled = false;
+            setThinking(false);
 
-            send.textContent = "↑";
-
-            coreContainer.classList.remove(
-                "thinking"
-            );
         }
 
     }
-);
 
 
-/* ENTER KEY */
+    // =========================
+    // SEND BUTTON
+    // =========================
 
-message.addEventListener(
-    "keydown",
-    function(event) {
-
-        if (event.key === "Enter") {
-            send.click();
-        }
-
-    }
-);
-
-
-/* VOICE INPUT */
-
-const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
-
-
-if (!SpeechRecognition) {
-
-    voiceButton.addEventListener(
+    sendButton.addEventListener(
         "click",
-        function() {
-
-            result.textContent =
-                "Voice input is not supported by this browser.";
-
-            result.style.display =
-                "block";
-
-        }
+        sendMessage
     );
 
-} else {
 
-    const recognition =
-        new SpeechRecognition();
+    // =========================
+    // ENTER KEY
+    // =========================
 
-    recognition.lang =
-        "en-US";
+    input.addEventListener(
+        "keydown",
+        function (event) {
 
-    recognition.continuous =
-        false;
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
 
-    recognition.interimResults =
-        false;
+                event.preventDefault();
 
-
-    voiceButton.addEventListener(
-        "click",
-        function() {
-
-            try {
-
-                recognition.start();
-
-                voiceButton.classList.add(
-                    "listening"
-                );
-
-                voiceStatus.classList.add(
-                    "visible"
-                );
-
-                result.textContent =
-                    "Nova is listening...";
-
-                result.style.display =
-                    "block";
-
-            } catch (error) {
-
-                console.log(error);
+                sendMessage();
 
             }
 
@@ -926,131 +961,19 @@ if (!SpeechRecognition) {
     );
 
 
-    recognition.onresult =
-        function(event) {
+    // =========================
+    // VOICE INPUT
+    // =========================
 
-            const transcript =
-                event.results[0][0]
-                    .transcript;
-
-            message.value =
-                transcript;
-
-            result.textContent =
-                "I heard: " +
-                transcript;
-
-            result.style.display =
-                "block";
-
-        };
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
 
-    recognition.onerror =
-        function(event) {
+    if (SpeechRecognition) {
 
-            result.textContent =
-                "Microphone error: " +
-                event.error;
+        const recognition =
+            new SpeechRecognition();
 
-            result.style.display =
-                "block";
-
-        };
-
-
-    recognition.onend =
-        function() {
-
-            voiceButton.classList.remove(
-                "listening"
-            );
-
-            voiceStatus.classList.remove(
-                "visible"
-            );
-
-        };
-
-}
-
-
-/* PHOTO INPUT */
-
-photoButton.addEventListener(
-    "click",
-    function() {
-
-        photoInput.click();
-
-    }
-);
-
-
-photoInput.addEventListener(
-    "change",
-    function() {
-
-        const file =
-            photoInput.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        if (!file.type.startsWith("image/")) {
-
-            result.textContent =
-                "Please select an image.";
-
-            result.style.display =
-                "block";
-
-            return;
-        }
-
-        const imageURL =
-            URL.createObjectURL(file);
-
-        previewImage.src =
-            imageURL;
-
-        photoPreview.classList.add(
-            "visible"
-        );
-
-        result.textContent =
-            "Photo selected: " +
-            file.name;
-
-        result.style.display =
-            "block";
-
-    }
-);
-
-
-/* REMOVE PHOTO */
-
-removePhoto.addEventListener(
-    "click",
-    function() {
-
-        photoInput.value = "";
-
-        previewImage.src = "";
-
-        photoPreview.classList.remove(
-            "visible"
-        );
-
-        result.style.display =
-            "none";
-
-    }
-);
-
-</script>
-
-</body>
-                </html>
+        recognition.lang =
+            "en-US";
