@@ -1,441 +1,1024 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nova</title>
 
-    <title>Nova</title>
+<style>
+* {
+    box-sizing: border-box;
+}
 
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+:root {
+    --bg: #020711;
+    --panel: rgba(5, 17, 34, 0.78);
+    --blue: #078cff;
+    --cyan: #00d9ff;
+    --text: #f4f8ff;
+    --muted: #8292aa;
+    --border: rgba(0, 153, 255, 0.22);
+}
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background:
-                radial-gradient(circle at center, #071a35 0%, #020611 45%, #000 100%);
-            color: white;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
+body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+        radial-gradient(circle at 65% 40%, rgba(0, 95, 190, 0.16), transparent 35%),
+        radial-gradient(circle at 50% 100%, rgba(0, 100, 255, 0.12), transparent 40%),
+        var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    overflow: hidden;
+}
 
-        .app {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+.app {
+    height: 100vh;
+    display: flex;
+}
 
-        /* Top bar */
+/* SIDEBAR */
 
-        .topbar {
-            height: 70px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 24px;
-            border-bottom: 1px solid rgba(0, 180, 255, 0.15);
-            background: rgba(0, 0, 0, 0.25);
-            backdrop-filter: blur(15px);
-        }
+.sidebar {
+    width: 235px;
+    border-right: 1px solid var(--border);
+    background: rgba(1, 7, 17, 0.82);
+    backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    padding: 24px 14px;
+}
 
-        .logo {
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: 2px;
-        }
+.logo {
+    font-size: 27px;
+    letter-spacing: 7px;
+    font-weight: 600;
+    margin: 3px 15px 38px;
+    color: #d9ecff;
+}
 
-        .status {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            opacity: 0.8;
-        }
+.logo span {
+    color: var(--cyan);
+    text-shadow: 0 0 18px var(--cyan);
+}
 
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #00d9ff;
-            box-shadow: 0 0 12px #00d9ff;
-        }
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
 
-        /* Main */
+.nav-button {
+    border: 1px solid transparent;
+    background: transparent;
+    color: #aab9cf;
+    border-radius: 15px;
+    padding: 14px 18px;
+    text-align: left;
+    font-size: 15px;
+    cursor: pointer;
+}
 
-        .main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 30px;
-        }
+.nav-button:hover,
+.nav-button.active {
+    background: rgba(0, 115, 255, 0.13);
+    border-color: rgba(0, 150, 255, 0.2);
+    color: white;
+    box-shadow: inset 3px 0 0 var(--blue);
+}
 
-        /* Nova Core */
+.profile {
+    margin-top: auto;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 17px;
+    background: rgba(5, 20, 40, 0.6);
+}
 
-        .core-container {
-            position: relative;
-            width: 220px;
-            height: 220px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
+.profile-name {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
 
-        .core-ring {
-            position: absolute;
-            width: 190px;
-            height: 190px;
-            border-radius: 50%;
-            border: 1px solid rgba(0, 200, 255, 0.25);
-            animation: ringPulse 3s ease-in-out infinite;
-        }
+.profile-sub {
+    color: var(--muted);
+    font-size: 12px;
+}
 
-        .core-ring.two {
-            width: 220px;
-            height: 220px;
-            border-color: rgba(0, 150, 255, 0.12);
-            animation-delay: 0.7s;
-        }
+/* MAIN */
 
-        .core {
-            width: 115px;
-            height: 115px;
-            border-radius: 50%;
-            background:
-                radial-gradient(circle at 35% 30%, #bdf7ff 0%, #27cfff 15%, #087cff 45%, #031c54 75%, #000 100%);
-            box-shadow:
-                0 0 25px #00bfff,
-                0 0 60px rgba(0, 145, 255, 0.8),
-                0 0 110px rgba(0, 100, 255, 0.35);
-            animation: coreFloat 3s ease-in-out infinite;
-            transition: all 0.4s ease;
-        }
+.main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
 
-        /* Thinking state */
+.topbar {
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    border-bottom: 1px solid rgba(0, 140, 255, 0.13);
+}
 
-        .thinking .core {
-            animation:
-                coreThink 0.9s ease-in-out infinite alternate,
-                coreSpin 4s linear infinite;
-            box-shadow:
-                0 0 35px #00d9ff,
-                0 0 80px rgba(0, 170, 255, 0.95),
-                0 0 150px rgba(0, 110, 255, 0.55);
-        }
+.status {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 9px 15px;
+    border-radius: 20px;
+    background: rgba(0, 110, 255, 0.1);
+    border: 1px solid rgba(0, 140, 255, 0.16);
+    font-size: 13px;
+}
 
-        .thinking .core-ring {
-            animation:
-                ringThink 1.2s linear infinite;
-        }
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2dff9b;
+    box-shadow: 0 0 12px #2dff9b;
+}
 
-        .thinking .core-ring.two {
-            animation-duration: 1.7s;
-        }
+.top-actions {
+    display: flex;
+    gap: 18px;
+}
 
-        @keyframes coreFloat {
-            0%, 100% {
-                transform: translateY(0) scale(1);
-            }
+.top-button {
+    border: none;
+    background: transparent;
+    color: #b7c7dd;
+    font-size: 22px;
+    cursor: pointer;
+}
 
-            50% {
-                transform: translateY(-8px) scale(1.03);
-            }
-        }
+/* CENTER */
 
-        @keyframes coreThink {
-            from {
-                transform: scale(0.92);
-            }
+.workspace {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-y: auto;
+}
 
-            to {
-                transform: scale(1.12);
-            }
-        }
+.core-container {
+    width: 290px;
+    height: 290px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -20px;
+}
 
-        @keyframes coreSpin {
-            from {
-                filter: hue-rotate(0deg);
-            }
+.core {
+    width: 145px;
+    height: 145px;
+    border-radius: 50%;
+    position: relative;
+    background:
+        radial-gradient(circle at 32% 28%,
+            #d9fbff 0%,
+            #5cecff 9%,
+            #087cff 38%,
+            #052f82 68%,
+            #01091c 100%);
+    box-shadow:
+        0 0 25px #00cfff,
+        0 0 65px rgba(0, 120, 255, .8),
+        0 0 120px rgba(0, 100, 255, .35);
+    animation: float 4s ease-in-out infinite;
+    z-index: 3;
+}
 
-            to {
-                filter: hue-rotate(35deg);
-            }
-        }
+.core::after {
+    content: "";
+    position: absolute;
+    width: 75%;
+    height: 25%;
+    left: 12%;
+    top: 45%;
+    border-radius: 50%;
+    background: rgba(91, 242, 255, .7);
+    filter: blur(8px);
+    transform: rotate(-20deg);
+    opacity: .75;
+}
 
-        @keyframes ringPulse {
-            0%, 100% {
-                transform: scale(0.95);
-                opacity: 0.4;
-            }
+.ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 170, 255, .42);
+}
 
-            50% {
-                transform: scale(1.05);
-                opacity: 0.9;
-            }
-        }
+.ring.one {
+    width: 210px;
+    height: 210px;
+    border-left-color: transparent;
+    border-bottom-color: transparent;
+    animation: rotate 10s linear infinite;
+}
 
-        @keyframes ringThink {
-            from {
-                transform: rotate(0deg) scale(0.9);
-            }
+.ring.two {
+    width: 245px;
+    height: 245px;
+    border-right-color: transparent;
+    border-top-color: transparent;
+    animation: rotateReverse 13s linear infinite;
+}
 
-            to {
-                transform: rotate(360deg) scale(1.1);
-            }
-        }
+.ring.three {
+    width: 280px;
+    height: 280px;
+    border-left-color: transparent;
+    border-right-color: transparent;
+    opacity: .35;
+    animation: rotate 18s linear infinite;
+}
 
-        .greeting {
-            text-align: center;
-            margin-bottom: 24px;
-        }
+.core-dot {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #65ecff;
+    box-shadow: 0 0 15px #00d9ff;
+}
 
-        .greeting h1 {
-            margin: 0 0 8px;
-            font-size: 30px;
-        }
+.dot-one {
+    top: 26px;
+    right: 42px;
+}
 
-        .greeting p {
-            margin: 0;
-            opacity: 0.6;
-        }
+.dot-two {
+    bottom: 35px;
+    left: 30px;
+}
 
-        /* Thinking indicator */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0);
+    }
 
-        .thinking-indicator {
-            height: 24px;
-            margin-bottom: 12px;
-            font-size: 14px;
-            color: #7deaff;
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
+    50% {
+        transform: translateY(-9px);
+    }
+}
 
-        .thinking-indicator.visible {
-            opacity: 1;
-        }
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
 
-        .dots span {
-            animation: blink 1.4s infinite;
-        }
+    to {
+        transform: rotate(360deg);
+    }
+}
 
-        .dots span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
+@keyframes rotateReverse {
+    from {
+        transform: rotate(360deg);
+    }
 
-        .dots span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
+    to {
+        transform: rotate(0deg);
+    }
+}
 
-        @keyframes blink {
-            0%, 60%, 100% {
-                opacity: 0.2;
-            }
+/* THINKING */
 
-            30% {
-                opacity: 1;
-            }
-        }
+.thinking .core {
+    animation:
+        thinkPulse .8s ease-in-out infinite alternate,
+        float 2s ease-in-out infinite;
+    box-shadow:
+        0 0 35px #00e5ff,
+        0 0 85px rgba(0, 155, 255, .95),
+        0 0 150px rgba(0, 105, 255, .5);
+}
 
-        /* Chat */
+.thinking .ring {
+    border-color: rgba(0, 220, 255, .7);
+}
 
-        .chat-area {
-            width: min(760px, 100%);
-        }
+.thinking .ring.one {
+    animation-duration: 2s;
+}
 
-        .input-row {
-            display: flex;
-            gap: 10px;
-        }
+.thinking .ring.two {
+    animation-duration: 3s;
+}
 
-        #message {
-            flex: 1;
-            min-width: 0;
-            padding: 16px 18px;
-            border-radius: 16px;
-            border: 1px solid rgba(0, 200, 255, 0.2);
-            background: rgba(5, 15, 30, 0.8);
-            color: white;
-            outline: none;
-            font-size: 16px;
-        }
+@keyframes thinkPulse {
+    from {
+        transform: scale(.93);
+    }
 
-        #message:focus {
-            border-color: rgba(0, 200, 255, 0.6);
-            box-shadow: 0 0 20px rgba(0, 180, 255, 0.12);
-        }
+    to {
+        transform: scale(1.08);
+    }
+}
 
-        #send {
-            border: none;
-            border-radius: 16px;
-            padding: 0 22px;
-            background: #087cff;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 0 20px rgba(0, 120, 255, 0.35);
-        }
+/* GREETING */
 
-        #send:hover {
-            background: #1595ff;
-        }
+.greeting {
+    text-align: center;
+    margin-top: -10px;
+    margin-bottom: 17px;
+}
 
-        #send:disabled {
-            opacity: 0.5;
-            cursor: default;
-        }
+.greeting h1 {
+    font-size: 32px;
+    margin: 0 0 8px;
+}
 
-        #response {
-            margin-top: 18px;
-            padding: 16px;
-            min-height: 50px;
-            border-radius: 16px;
-            background: rgba(5, 15, 30, 0.65);
-            border: 1px solid rgba(0, 180, 255, 0.1);
-            line-height: 1.5;
-            white-space: pre-wrap;
-        }
+.greeting h1 span {
+    color: #1c9bff;
+}
 
-        @media (max-width: 600px) {
-            .core-container {
-                transform: scale(0.85);
-                margin-bottom: 10px;
-            }
+.greeting p {
+    margin: 0;
+    color: var(--muted);
+}
 
-            .greeting h1 {
-                font-size: 25px;
-            }
+/* THINKING INDICATOR */
 
-            .main {
-                padding: 20px;
-            }
-        }
-    </style>
+.thinking-indicator {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 18px;
+    border: 1px solid rgba(0, 155, 255, .35);
+    border-radius: 22px;
+    color: #bcefff;
+    background: rgba(0, 90, 190, .12);
+    opacity: 0;
+    transform: translateY(5px);
+    transition: .25s ease;
+    pointer-events: none;
+    margin-bottom: 14px;
+}
+
+.thinking-indicator.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.dots {
+    display: flex;
+    gap: 4px;
+}
+
+.dots span {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--cyan);
+    animation: dotPulse 1.2s infinite;
+}
+
+.dots span:nth-child(2) {
+    animation-delay: .2s;
+}
+
+.dots span:nth-child(3) {
+    animation-delay: .4s;
+}
+
+@keyframes dotPulse {
+    0%, 100% {
+        opacity: .25;
+        transform: translateY(0);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateY(-3px);
+    }
+}
+
+/* CHAT */
+
+.chat-area {
+    width: min(850px, 100%);
+}
+
+.input-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 9px 8px 12px;
+    border-radius: 30px;
+    border: 1px solid rgba(0, 157, 255, .65);
+    background: rgba(3, 17, 36, .86);
+    box-shadow:
+        0 0 25px rgba(0, 105, 255, .1),
+        inset 0 0 25px rgba(0, 70, 150, .08);
+}
+
+.icon-button {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: #8da6c4;
+    font-size: 19px;
+    cursor: pointer;
+}
+
+.icon-button:hover {
+    color: white;
+    background: rgba(0, 120, 255, .12);
+}
+
+#message {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    color: white;
+    font-size: 15px;
+}
+
+#message::placeholder {
+    color: #778ba5;
+}
+
+.send-button {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #28a7ff, #006eea);
+    color: white;
+    font-size: 21px;
+    cursor: pointer;
+    box-shadow: 0 0 22px rgba(0, 135, 255, .55);
+}
+
+.send-button:hover {
+    transform: scale(1.05);
+}
+
+.send-button:disabled {
+    opacity: .45;
+    cursor: default;
+}
+
+/* QUICK ACTIONS */
+
+.quick-actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.quick {
+    border: 1px solid rgba(0, 140, 255, .25);
+    border-radius: 20px;
+    background: rgba(4, 20, 40, .6);
+    color: #a8bdd8;
+    padding: 9px 15px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.quick:hover {
+    color: white;
+    border-color: rgba(0, 170, 255, .6);
+    background: rgba(0, 100, 220, .12);
+}
+
+/* RESPONSE */
+
+#response {
+    margin-top: 15px;
+    width: 100%;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 15px 18px;
+    border-radius: 16px;
+    background: rgba(3, 15, 30, .72);
+    border: 1px solid rgba(0, 140, 255, .12);
+    color: #dce9f8;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    display: none;
+}
+
+#response.visible {
+    display: block;
+}
+
+/* HIDDEN FILE INPUTS */
+
+.hidden-input {
+    display: none;
+}
+
+/* MOBILE */
+
+@media (max-width: 760px) {
+
+    .sidebar {
+        display: none;
+    }
+
+    .topbar {
+        padding: 0 16px;
+    }
+
+    .workspace {
+        padding: 10px 14px 18px;
+    }
+
+    .core-container {
+        transform: scale(.78);
+        margin-top: -35px;
+        margin-bottom: -35px;
+    }
+
+    .greeting h1 {
+        font-size: 26px;
+    }
+
+    .quick {
+        padding: 8px 12px;
+    }
+
+    .input-box {
+        padding-left: 7px;
+    }
+
+    .icon-button {
+        width: 34px;
+        height: 34px;
+    }
+
+    .send-button {
+        width: 44px;
+        height: 44px;
+    }
+}
+</style>
 </head>
 
 <body>
 
 <div class="app">
 
-    <div class="topbar">
-        <div class="logo">NOVA</div>
+    <aside class="sidebar">
 
-        <div class="status">
-            <div class="status-dot"></div>
-            Online
+        <div class="logo">
+            N<span>O</span>VA
         </div>
-    </div>
+
+        <nav class="nav">
+            <button class="nav-button active">◉ &nbsp; Chat</button>
+            <button class="nav-button">✦ &nbsp; Memories</button>
+            <button class="nav-button">⚙ &nbsp; Tools</button>
+            <button class="nav-button">◈ &nbsp; Settings</button>
+        </nav>
+
+        <div class="profile">
+            <div class="profile-name">Noah</div>
+            <div class="profile-sub">My AI companion</div>
+        </div>
+
+    </aside>
 
     <main class="main">
 
-        <div class="core-container" id="coreContainer">
-            <div class="core-ring"></div>
-            <div class="core-ring two"></div>
-            <div class="core"></div>
-        </div>
+        <header class="topbar">
 
-        <div class="greeting">
-            <h1>Hello, Noah.</h1>
-            <p>Your personal AI assistant is ready.</p>
-        </div>
-
-        <div class="thinking-indicator" id="thinkingIndicator">
-            Nova is thinking<span class="dots">
-                <span>.</span>
-                <span>.</span>
-                <span>.</span>
-            </span>
-        </div>
-
-        <div class="chat-area">
-
-            <div class="input-row">
-                <input
-                    id="message"
-                    type="text"
-                    placeholder="Ask Nova anything..."
-                    autocomplete="off"
-                >
-
-                <button id="send">Send</button>
+            <div class="status">
+                <div class="status-dot"></div>
+                Online
             </div>
 
-            <div id="response"></div>
+            <div class="top-actions">
+                <button class="top-button">☼</button>
+                <button class="top-button">☰</button>
+            </div>
 
-        </div>
+        </header>
+
+        <section class="workspace">
+
+            <div class="core-container" id="coreContainer">
+
+                <div class="ring one"></div>
+                <div class="ring two"></div>
+                <div class="ring three"></div>
+
+                <div class="core"></div>
+
+                <div class="core-dot dot-one"></div>
+                <div class="core-dot dot-two"></div>
+
+            </div>
+
+            <div class="greeting">
+                <h1>Hello, <span>Noah.</span></h1>
+                <p>Your personal AI assistant is ready.</p>
+            </div>
+
+            <div class="thinking-indicator" id="thinkingIndicator">
+
+                <span>Nova is thinking</span>
+
+                <span class="dots">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </span>
+
+            </div>
+
+            <div class="chat-area">
+
+                <div class="input-box">
+
+                    <button
+                        class="icon-button"
+                        id="voiceButton"
+                        title="Voice input"
+                    >
+                        🎙
+                    </button>
+
+                    <input
+                        id="message"
+                        type="text"
+                        placeholder="Ask Nova anything..."
+                        autocomplete="off"
+                    >
+
+                    <button
+                        class="icon-button"
+                        id="attachButton"
+                        title="Attach file"
+                    >
+                        📎
+                    </button>
+
+                    <button
+                        class="icon-button"
+                        id="photoButton"
+                        title="Add photo"
+                    >
+                        ▧
+                    </button>
+
+                    <button
+                        class="icon-button"
+                        id="videoButton"
+                        title="Add video"
+                    >
+                        ▷
+                    </button>
+
+                    <button
+                        class="send-button"
+                        id="sendButton"
+                        title="Send"
+                    >
+                        ↑
+                    </button>
+
+                </div>
+
+                <input
+                    class="hidden-input"
+                    id="fileInput"
+                    type="file"
+                >
+
+                <input
+                    class="hidden-input"
+                    id="photoInput"
+                    type="file"
+                    accept="image/*"
+                >
+
+                <input
+                    class="hidden-input"
+                    id="videoInput"
+                    type="file"
+                    accept="video/*"
+                >
+
+                <div class="quick-actions">
+
+                    <button class="quick" data-text="Search the web for ">
+                        ◉ Search the web
+                    </button>
+
+                    <button class="quick" data-text="Calculate ">
+                        ▣ Calculate
+                    </button>
+
+                    <button class="quick" data-text="Set a timer for ">
+                        ◷ Set a timer
+                    </button>
+
+                    <button class="quick" data-text="Remember that ">
+                        ✦ Remember this
+                    </button>
+
+                </div>
+
+                <div id="response"></div>
+
+            </div>
+
+        </section>
 
     </main>
 
 </div>
 
 <script>
-    const messageInput = document.getElementById("message");
-    const sendButton = document.getElementById("send");
-    const responseBox = document.getElementById("response");
-    const thinkingIndicator = document.getElementById("thinkingIndicator");
-    const coreContainer = document.getElementById("coreContainer");
+const messageInput = document.getElementById("message");
+const sendButton = document.getElementById("sendButton");
+const responseBox = document.getElementById("response");
+const thinkingIndicator = document.getElementById("thinkingIndicator");
+const coreContainer = document.getElementById("coreContainer");
 
-    function setThinking(thinking) {
-        thinkingIndicator.classList.toggle("visible", thinking);
-        coreContainer.classList.toggle("thinking", thinking);
-        sendButton.disabled = thinking;
+const voiceButton = document.getElementById("voiceButton");
+const attachButton = document.getElementById("attachButton");
+const photoButton = document.getElementById("photoButton");
+const videoButton = document.getElementById("videoButton");
+
+const fileInput = document.getElementById("fileInput");
+const photoInput = document.getElementById("photoInput");
+const videoInput = document.getElementById("videoInput");
+
+
+function setThinking(thinking) {
+
+    thinkingIndicator.classList.toggle(
+        "visible",
+        thinking
+    );
+
+    coreContainer.classList.toggle(
+        "thinking",
+        thinking
+    );
+
+    sendButton.disabled = thinking;
+}
+
+
+async function sendMessage() {
+
+    const text = messageInput.value.trim();
+
+    if (!text) {
+        return;
     }
 
-    async function sendMessage() {
+    responseBox.textContent = "";
+    responseBox.classList.remove("visible");
 
-        const text = messageInput.value.trim();
+    setThinking(true);
 
-        if (!text) return;
+    try {
 
-        responseBox.textContent = "";
-        setThinking(true);
+        const response = await fetch("/chat", {
 
-        try {
+            method: "POST",
 
-            const response = await fetch("/chat", {
-                method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
 
-                headers: {
-                    "Content-Type": "application/json"
-                },
+            body: JSON.stringify({
+                message: text
+            })
 
-                body: JSON.stringify({
-                    message: text
-                })
-            });
+        });
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.detail || "Nova could not respond.");
-            }
-
-            responseBox.textContent = data.reply;
-
-        } catch (error) {
-
-            responseBox.textContent =
-                "Connection error: " + error.message;
-
-        } finally {
-
-            setThinking(false);
-
+        if (!response.ok) {
+            throw new Error(
+                data.detail || "Nova could not respond."
+            );
         }
+
+        responseBox.textContent = data.reply;
+        responseBox.classList.add("visible");
+
+    } catch (error) {
+
+        responseBox.textContent =
+            "Connection error: " + error.message;
+
+        responseBox.classList.add("visible");
+
+    } finally {
+
+        setThinking(false);
+
     }
+}
 
-    sendButton.addEventListener("click", sendMessage);
 
-    messageInput.addEventListener("keydown", function(event) {
+sendButton.addEventListener(
+    "click",
+    sendMessage
+);
+
+
+messageInput.addEventListener(
+    "keydown",
+    function(event) {
 
         if (event.key === "Enter") {
             sendMessage();
         }
 
-    });
+    }
+);
+
+
+/* QUICK ACTIONS */
+
+document.querySelectorAll(".quick").forEach(
+    button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                messageInput.value =
+                    button.dataset.text;
+
+                messageInput.focus();
+
+            }
+        );
+
+    }
+);
+
+
+/* FILE BUTTONS */
+
+attachButton.addEventListener(
+    "click",
+    () => fileInput.click()
+);
+
+photoButton.addEventListener(
+    "click",
+    () => photoInput.click()
+);
+
+videoButton.addEventListener(
+    "click",
+    () => videoInput.click()
+);
+
+
+photoInput.addEventListener(
+    "change",
+    () => {
+
+        if (photoInput.files.length > 0) {
+
+            const file =
+                photoInput.files[0];
+
+            responseBox.textContent =
+                "Photo selected: " + file.name +
+                "\n\nImage understanding will be connected next.";
+
+            responseBox.classList.add("visible");
+        }
+
+    }
+);
+
+
+videoInput.addEventListener(
+    "change",
+    () => {
+
+        if (videoInput.files.length > 0) {
+
+            const file =
+                videoInput.files[0];
+
+            responseBox.textContent =
+                "Video selected: " + file.name +
+                "\n\nVideo understanding will be connected next.";
+
+            responseBox.classList.add("visible");
+        }
+
+    }
+);
+
+
+fileInput.addEventListener(
+    "change",
+    () => {
+
+        if (fileInput.files.length > 0) {
+
+            const file =
+                fileInput.files[0];
+
+            responseBox.textContent =
+                "File selected: " + file.name;
+
+            responseBox.classList.add("visible");
+        }
+
+    }
+);
+
+
+/* VOICE INPUT */
+
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+
+    const recognition =
+        new SpeechRecognition();
+
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+
+    voiceButton.addEventListener(
+        "click",
+        () => {
+
+            voiceButton.textContent = "🔴";
+
+            recognition.start();
+
+        }
+    );
+
+    recognition.onresult =
+        function(event) {
+
+            const transcript =
+                event.results[0][0].transcript;
+
+            messageInput.value =
+                transcript;
+
+        };
+
+    recognition.onend =
+        function() {
+
+            voiceButton.textContent = "🎙";
+
+        };
+
+    recognition.onerror =
+        function() {
+
+            voiceButton.textContent = "🎙";
+
+        };
+
+} else {
+
+    voiceButton.addEventListener(
+        "click",
+        () => {
+
+            responseBox.textContent =
+                "Voice input isn't supported by this browser.";
+
+            responseBox.classList.add("visible");
+
+        }
+    );
+
+}
 </script>
 
 </body>
