@@ -1,10 +1,8 @@
 import os
 import secrets
-import json
 import uuid
 import re
 from typing import Optional
-from urllib.request import Request as URLRequest, urlopen
 
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.responses import FileResponse, RedirectResponse
@@ -25,10 +23,19 @@ app = FastAPI(title="Nova Core")
 # ============================================================
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
-DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
-ACCESS_KEY = os.environ.get("NOVA_ACCESS_KEY")
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
+DEVELOPER_KEY = os.environ.get(
+    "NOVA_DEVELOPER_KEY"
+)
+
+ACCESS_KEY = os.environ.get(
+    "NOVA_ACCESS_KEY"
+)
+
+SUPABASE_URL = os.environ.get(
+    "SUPABASE_URL"
+)
+
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
     "SUPABASE_SERVICE_ROLE_KEY"
 )
@@ -123,6 +130,7 @@ def clear_conversation(session_id: str):
 def require_access(request: Request):
 
     if not ACCESS_KEY:
+
         raise HTTPException(
             status_code=500,
             detail="Nova access is not configured."
@@ -133,6 +141,7 @@ def require_access(request: Request):
     )
 
     if not session_key:
+
         raise HTTPException(
             status_code=401,
             detail="Nova access required."
@@ -142,6 +151,7 @@ def require_access(request: Request):
         session_key,
         ACCESS_KEY
     ):
+
         raise HTTPException(
             status_code=401,
             detail="Nova access required."
@@ -153,12 +163,14 @@ def require_developer(
 ):
 
     if not DEVELOPER_KEY:
+
         raise HTTPException(
             status_code=500,
             detail="Developer authentication is not configured."
         )
 
     if not x_developer_key:
+
         raise HTTPException(
             status_code=401,
             detail="Developer access required."
@@ -168,6 +180,7 @@ def require_developer(
         x_developer_key,
         DEVELOPER_KEY
     ):
+
         raise HTTPException(
             status_code=401,
             detail="Developer access required."
@@ -312,9 +325,11 @@ def save_memory(
     try:
 
         if not memory_key.strip():
+
             return False
 
         if not memory_value.strip():
+
             return False
 
         supabase.table(
@@ -536,18 +551,23 @@ def nova_execute(
 ):
 
     if plan == "chat":
+
         return None
 
     if plan == "calculator":
+
         return "calculator"
 
     if plan == "web_search":
+
         return "web_search"
 
     if plan == "memory":
+
         return "memory"
 
     if plan == "timer":
+
         return "timer"
 
     return None
@@ -633,12 +653,9 @@ def permission_test(
     return {
         "action": action,
         "permission": permission,
-        "automatic":
-            permission == "low",
-        "confirmation_required":
-            permission == "high",
-        "blocked":
-            permission == "blocked"
+        "automatic": permission == "low",
+        "confirmation_required": permission == "high",
+        "blocked": permission == "blocked"
     }
 
 
@@ -1039,6 +1056,35 @@ You are Noah's personal AI assistant.
             model="Qwen/Qwen3-4B-Instruct-2507",
             messages=messages,
             max_tokens=400
+         )
+
+        reply = response.choices[0].message.content
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
         )
 
-   
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan
+        }
+
+    except Exception as error:
+
+        print(
+            "Chat error:",
+            error
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Nova encountered an AI error."
+        )
