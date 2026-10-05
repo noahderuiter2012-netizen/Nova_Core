@@ -121,12 +121,25 @@ def nova_execute(plan: str, message: str):
     return None
 
 
+def nova_calculate(expression: str):
+    try:
+        allowed = "0123456789+-*/(). "
+        cleaned = "".join(
+            char for char in expression
+            if char in allowed
+        )
+
+        if not cleaned:
+            return "I couldn't find a calculation."
+
+        result = eval(cleaned, {"__builtins__": {}}, {})
+        return str(result)
+
+    except Exception:
+        return "I couldn't calculate that."
+
 class ChatMessage(BaseModel):
     message: str
-
-
-class AccessRequest(BaseModel):
-    key: str
 
 
 def get_noah_memory():
