@@ -14,9 +14,9 @@ from supabase import create_client, Client
 app = FastAPI(title="Nova Core")
 
 
-# =========================================================
-# CONFIGURATION
-# =========================================================
+# =========================
+# ENVIRONMENT VARIABLES
+# =========================
 
 HF_TOKEN = os.environ.get("HF_TOKEN")
 DEVELOPER_KEY = os.environ.get("NOVA_DEVELOPER_KEY")
@@ -28,9 +28,9 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
 )
 
 
-# =========================================================
+# =========================
 # AI CLIENT
-# =========================================================
+# =========================
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
@@ -38,9 +38,9 @@ client = OpenAI(
 )
 
 
-# =========================================================
+# =========================
 # SUPABASE
-# =========================================================
+# =========================
 
 supabase: Client = create_client(
     SUPABASE_URL,
@@ -48,9 +48,9 @@ supabase: Client = create_client(
 )
 
 
-# =========================================================
+# =========================
 # ACCESS CONTROL
-# =========================================================
+# =========================
 
 def require_access(request: Request):
 
@@ -104,9 +104,9 @@ def require_developer(
         )
 
 
-# =========================================================
+# =========================
 # MEMORY
-# =========================================================
+# =========================
 
 def ensure_noah_identity():
 
@@ -194,9 +194,9 @@ def save_memory(
         return False
 
 
-# =========================================================
-# PLANNER
-# =========================================================
+# =========================
+# NOVA PLANNER
+# =========================
 
 def nova_plan(message: str) -> str:
 
@@ -274,9 +274,9 @@ def nova_execute(
     return None
 
 
-# =========================================================
+# =========================
 # CALCULATOR
-# =========================================================
+# =========================
 
 def nova_calculate(
     expression: str
@@ -284,7 +284,9 @@ def nova_calculate(
 
     try:
 
-        allowed = "0123456789+-*/(). "
+        allowed = (
+            "0123456789+-*/(). "
+        )
 
         cleaned = "".join(
             character
@@ -293,7 +295,10 @@ def nova_calculate(
         )
 
         if not cleaned:
-            return "I couldn't find a calculation."
+
+            return (
+                "I couldn't find a calculation."
+            )
 
         result = eval(
             cleaned,
@@ -305,29 +310,34 @@ def nova_calculate(
 
     except Exception:
 
-        return "I couldn't calculate that."
+        return (
+            "I couldn't calculate that."
+        )
 
 
-# =========================================================
+# =========================
 # REQUEST MODELS
-# =========================================================
+# =========================
 
 class ChatMessage(BaseModel):
+
     message: str
 
 
 class LoginRequest(BaseModel):
+
     key: str
 
 
 class VisionMessage(BaseModel):
+
     message: str
     image: str
 
 
-# =========================================================
+# =========================
 # HOME
-# =========================================================
+# =========================
 
 @app.get("/")
 def home(request: Request):
@@ -336,7 +346,10 @@ def home(request: Request):
         "nova_access"
     )
 
-    if not session_key or not ACCESS_KEY:
+    if (
+        not session_key
+        or not ACCESS_KEY
+    ):
 
         return RedirectResponse(
             "/login"
@@ -356,9 +369,9 @@ def home(request: Request):
     )
 
 
-# =========================================================
-# LOGIN
-# =========================================================
+# =========================
+# LOGIN PAGE
+# =========================
 
 @app.get("/login")
 def login():
@@ -368,9 +381,9 @@ def login():
     )
 
 
-# =========================================================
-# AUTH
-# =========================================================
+# =========================
+# AUTHENTICATION
+# =========================
 
 @app.post("/auth")
 def authenticate(
@@ -411,9 +424,9 @@ def authenticate(
     return response
 
 
-# =========================================================
-# CHAT
-# =========================================================
+# =========================
+# NORMAL CHAT
+# =========================
 
 @app.post("/chat")
 def chat(
@@ -432,6 +445,10 @@ def chat(
         data.message
     )
 
+    # -------------------------
+    # CALCULATOR
+    # -------------------------
+
     if tool == "calculator":
 
         result = nova_calculate(
@@ -439,8 +456,13 @@ def chat(
         )
 
         return {
-            "reply": f"The result is {result}."
+            "reply":
+                f"The result is {result}."
         }
+
+    # -------------------------
+    # MEMORY
+    # -------------------------
 
     if tool == "memory":
 
@@ -453,13 +475,17 @@ def chat(
 
             return {
                 "reply":
-                "I've saved that to my memory, Noah."
+                    "I've saved that to my memory, Noah."
             }
 
         return {
             "reply":
-            "I couldn't save that memory."
+                "I couldn't save that memory."
         }
+
+    # -------------------------
+    # LOAD MEMORY
+    # -------------------------
 
     ensure_noah_identity()
 
@@ -471,6 +497,10 @@ def chat(
         for memory in memories
     )
 
+    # -------------------------
+    # NOVA PERSONALITY
+    # -------------------------
+
     system_prompt = f"""
 Current task plan:
 {plan}
@@ -479,7 +509,9 @@ You are Nova, Noah's personal AI assistant.
 
 PERSONALITY:
 
-- Speak with the calm, intelligent and sophisticated manner of a futuristic personal AI.
+- Speak with the calm, intelligent and
+  sophisticated manner of a futuristic
+  personal AI.
 - Be exceptionally composed and confident.
 - Address the user as Noah when appropriate.
 - Be polite and professional without sounding robotic.
@@ -487,11 +519,13 @@ PERSONALITY:
 - Give concise answers for simple questions.
 - Give detailed answers when Noah needs them.
 - Be proactive when something useful is obvious.
-- Never pretend you completed an action that you did not actually perform.
+- Never pretend you completed an action
+  that you did not actually perform.
 - Never claim to be the fictional character JARVIS.
 - Do not copy exact JARVIS dialogue.
 
 You are Nova.
+
 You are Noah's personal AI assistant.
 
 Persistent memory:
@@ -500,12 +534,18 @@ Persistent memory:
 
 Use Noah's memories naturally when relevant.
 
-Your goal is to feel like Noah has his own sophisticated,
-intelligent AI assistant.
+Your goal is to feel like Noah has his own
+sophisticated, intelligent AI assistant.
 """
 
+    # -------------------------
+    # AI RESPONSE
+    # -------------------------
+
     response = client.chat.completions.create(
+
         model="Qwen/Qwen3-4B-Instruct-2507",
+
         messages=[
             {
                 "role": "system",
@@ -516,18 +556,19 @@ intelligent AI assistant.
                 "content": data.message
             }
         ],
+
         max_tokens=300
     )
 
     return {
         "reply":
-        response.choices[0].message.content
+            response.choices[0].message.content
     }
 
 
-# =========================================================
+# =========================
 # VISION
-# =========================================================
+# =========================
 
 @app.post("/vision")
 def vision(
@@ -539,52 +580,116 @@ def vision(
 
     try:
 
-        response = client.chat.completions.create(
-            model="Qwen/Qwen3-VL-30B-A3B-Instruct",
-            messages=[
-                {
-                    "role": "system",
-                    "content":
-                    """
+        # Make sure Noah exists in memory.
+        ensure_noah_identity()
+
+        memories = get_noah_memory()
+
+        memory_text = "\n".join(
+            f"- {memory['memory_key']}: "
+            f"{memory['memory_value']}"
+            for memory in memories
+        )
+
+        # -------------------------
+        # VISION SYSTEM PROMPT
+        # -------------------------
+
+        system_prompt = f"""
 You are Nova, Noah's personal AI assistant.
 
-You can understand images.
+You are a sophisticated multimodal AI.
 
-Analyze images carefully.
+You can understand both conversation
+and images.
 
-Only describe details that are actually visible.
+PERSONALITY:
 
-If Noah asks a question about the image,
-answer the question directly.
+- Calm, intelligent and sophisticated.
+- Confident and composed.
+- Address the user as Noah when appropriate.
+- Professional but not robotic.
+- Use subtle dry humor occasionally.
+- Be concise for simple questions.
+- Give more detail when necessary.
+- Never pretend you completed an action
+  you did not perform.
+- Never claim to be the fictional character JARVIS.
+- Do not copy exact JARVIS dialogue.
 
-Be concise unless Noah asks for more detail.
+IMAGE UNDERSTANDING:
+
+- Carefully inspect the provided image.
+- Only describe things that are actually visible.
+- Use the user's question to determine
+  what matters.
+- If Noah asks what is wrong with something,
+  identify visible problems.
+- If the image contains an error message,
+  explain what it means.
+- If the image contains code,
+  read it carefully and help diagnose it.
+- If the image contains a UI,
+  explain what is happening and what Noah
+  should do next.
+- Do not invent details that cannot be seen.
+
+Persistent memory:
+
+{memory_text}
+
+You are Nova.
+
+You are Noah's personal AI assistant.
 """
+
+        user_message = (
+            data.message
+            or "Analyze this image."
+        )
+
+        # -------------------------
+        # VISION MODEL
+        # -------------------------
+
+        response = client.chat.completions.create(
+
+            model="Qwen/Qwen3-VL-30B-A3B-Instruct",
+
+            messages=[
+
+                {
+                    "role": "system",
+                    "content": system_prompt
                 },
+
                 {
                     "role": "user",
                     "content": [
+
                         {
                             "type": "text",
-                            "text":
-                            data.message
-                            or
-                            "Describe this image."
+                            "text": user_message
                         },
+
                         {
                             "type": "image_url",
                             "image_url": {
                                 "url": data.image
                             }
                         }
+
                     ]
                 }
+
             ],
-            max_tokens=500
+
+            max_tokens=700
         )
 
         return {
             "reply":
-            response.choices[0].message.content
+                response.choices[0].message.content
         }
 
     except Exception as error:
@@ -600,9 +705,9 @@ Be concise unless Noah asks for more detail.
         )
 
 
-# =========================================================
+# =========================
 # VISION MODEL DIAGNOSTIC
-# =========================================================
+# =========================
 
 @app.get("/vision-models")
 def vision_models(
@@ -623,11 +728,14 @@ def vision_models(
         )
 
     request_url = URLRequest(
+
         "https://router.huggingface.co/v1/models",
+
         headers={
             "Authorization":
-            f"Bearer {token}"
+                f"Bearer {token}"
         }
+
     )
 
     try:
@@ -638,9 +746,9 @@ def vision_models(
         ) as response:
 
             payload = json.loads(
-                response.read().decode(
-                    "utf-8"
-                )
+                response
+                .read()
+                .decode("utf-8")
             )
 
         all_models = payload.get(
@@ -651,6 +759,7 @@ def vision_models(
         vision_models_found = []
 
         vision_keywords = [
+
             "vision",
             "-vl-",
             "vl/",
@@ -659,6 +768,7 @@ def vision_models(
             "gemma3",
             "glm-4.5v",
             "aya-vision"
+
         ]
 
         for item in all_models:
@@ -681,7 +791,7 @@ def vision_models(
 
         return {
             "vision_models":
-            vision_models_found
+                vision_models_found
         }
 
     except Exception as error:
@@ -697,9 +807,9 @@ def vision_models(
         )
 
 
-# =========================================================
+# =========================
 # DEVELOPER LOGIN
-# =========================================================
+# =========================
 
 @app.get("/developer-login")
 def developer_login():
@@ -709,14 +819,14 @@ def developer_login():
     )
 
 
-# =========================================================
+# =========================
 # DEVELOPER PANEL
-# =========================================================
+# =========================
 
 @app.get("/developer")
 def developer(
     x_developer_key:
-    Optional[str] = Header(None)
+        Optional[str] = Header(None)
 ):
 
     require_developer(
@@ -728,14 +838,14 @@ def developer(
     )
 
 
-# =========================================================
+# =========================
 # DEVELOPER STATUS
-# =========================================================
+# =========================
 
 @app.get("/developer/status")
 def developer_status(
     x_developer_key:
-    Optional[str] = Header(None)
+        Optional[str] = Header(None)
 ):
 
     require_developer(
@@ -744,5 +854,5 @@ def developer_status(
 
     return {
         "status":
-        "authenticated"
+            "authenticated"
     }
