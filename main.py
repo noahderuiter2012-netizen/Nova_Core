@@ -1,120 +1,95 @@
 import os
-import secrets
-import uuid
 import re
-from typing import Optional
+import time
+import uuid
+import secrets
 
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 from openai import OpenAI
-from supabase import create_client, Client
-
-
-# ============================================================
-# NOVA CORE
-# ============================================================
+from supabase import create_client
 
 app = FastAPI(title="Nova Core")
 
-
-# ============================================================
-# ENVIRONMENT VARIABLES
-# ============================================================
-
-HF_TOKEN = os.environ.get("HF_TOKEN")
-
-DEVELOPER_KEY = os.environ.get(
-    "NOVA_DEVELOPER_KEY"
-)
-
-ACCESS_KEY = os.environ.get(
-    "NOVA_ACCESS_KEY"
-)
-
-SUPABASE_URL = os.environ.get(
-    "SUPABASE_URL"
-)
-
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get(
-    "SUPABASE_SERVICE_ROLE_KEY"
-)
-
-
-# ============================================================
-# AI CLIENT
-# ============================================================
+HF_TOKEN = os.getenv("HF_TOKEN")
+NOVA_ACCESS_KEY = os.getenv("NOVA_ACCESS_KEY")
+NOVA_DEVELOPER_KEY = os.getenv("NOVA_DEVELOPER_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 client = OpenAI(
     base_url="https://router.huggingface.co/v1",
     api_key=HF_TOKEN
 )
 
+supabase = None
+
+if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
+    try:
+        supabase = create_client(
+            SUPABASE_URL,
+            SUPABASE_SERVICE_ROLE_KEY
+        )
+        print("Supabase connected.")
+    except Exception as error:
+        print("Supabase connection error:", error)
+
 
 # ============================================================
-# SUPABASE
+# MODELS
 # ============================================================
 
-supabase: Client = create_client(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-)
+class ChatMessage(BaseModel):
+    message: str
+
+
+class LoginRequest(BaseModel):
+    key: str
+
+
+class VisionMessage(BaseModel):
+    message: str
+    image: str
+
+
+class ConfirmationRequest(BaseModel):
+    confirmation_id: str
 
 
 # ============================================================
-# SHORT-TERM CONVERSATION MEMORY
+# CONVERSATION MEMORY
 # ============================================================
 
 conversation_memory = {}
-
 MAX_CONVERSATION_MESSAGES = 12
-# ============================================================
-# PENDING ACTION CONFIRMATIONS
-# ============================================================
-
-pending_confirmations = {}
-
-CONFIRMATION_EXPIRY_SECONDS = 120
 
 
 def get_session_id(request: Request):
+    session_id = request.cookies.get("nova_session")
 
-    session_id = request.cookies.get(
-        "nova_session"
-    )
+    if session_id:
+        return session_id
 
-    if not session_id:
-        session_id = str(uuid.uuid4())
-
-    if session_id not in conversation_memory:
-        conversation_memory[session_id] = []
-
-    return session_id
+    return str(uuid.uuid4())
 
 
-def get_conversation(session_id: str):
-
-    return conversation_memory.get(
-        session_id,
-        []
-    )
+def get_conversation(session_id):
+    return conversation_memory.get(session_id, [])
 
 
 def add_conversation_message(
-    session_id: str,
-    role: str,
-    content: str
+    session_id,
+    role,
+    content
 ):
-
     if session_id not in conversation_memory:
         conversation_memory[session_id] = []
 
-    conversation_memory[session_id].append(
-        {
-            "role": role,
-            "content": content
-        }
-    )
+    conversation_memory[session_id].append({
+        "role": role,
+        "content": content
+    })
 
     conversation_memory[session_id] = (
         conversation_memory[session_id]
@@ -122,39 +97,42 @@ def add_conversation_message(
     )
 
 
-def clear_conversation(session_id: str):
-
+def clear_conversation(session_id):
     conversation_memory.pop(
         session_id,
         None
     )
-    # ============================================================
-# CONFIRMATION SYSTEM
+
+
+# ============================================================
+# CONFIRMATIONS
 # ============================================================
 
-def create_confirmation(
-    session_id: str,
-    action: str,
-    target: str
-):
+pending_confirmations = {}
+CONFIRMATION_EXPIRY_SECONDS = 120
 
+
+def create_confirmation(
+    session_id,
+    action,
+    target
+):
     confirmation_id = secrets.token_urlsafe(24)
 
     pending_confirmations[confirmation_id] = {
         "session_id": session_id,
         "action": action,
         "target": target,
-        "created_at": __import__("time").time()
+        "created_at": time.time()
     }
 
     return confirmation_id
 
 
 def get_confirmation(
-    confirmation_id: str,
-    session_id: str
+    confirmation_id,
+    session_id
 ):
-
     confirmation = pending_confirmations.get(
         confirmation_id
     )
@@ -165,28 +143,23 @@ def get_confirmation(
     if confirmation["session_id"] != session_id:
         return None
 
-    current_time = __import__("time").time()
-
     if (
-        current_time
+        time.time()
         - confirmation["created_at"]
         > CONFIRMATION_EXPIRY_SECONDS
     ):
-
         pending_confirmations.pop(
             confirmation_id,
             None
         )
-
         return None
 
     return confirmation
 
 
 def remove_confirmation(
-    confirmation_id: str
+    confirmation_id
 ):
-
     pending_confirmations.pop(
         confirmation_id,
         None
@@ -194,143 +167,76 @@ def remove_confirmation(
 
 
 # ============================================================
-# ACCESS CONTROL
+# AUTH
 # ============================================================
 
 def require_access(request: Request):
 
-    if not ACCESS_KEY:
-
-        raise HTTPException(
-            status_code=500,
-            detail="Nova access is not configured."
-        )
-
-    session_key = request.cookies.get(
+    access_cookie = request.cookies.get(
         "nova_access"
     )
 
-    if not session_key:
-
+    if not access_cookie:
         raise HTTPException(
             status_code=401,
             detail="Nova access required."
         )
 
-    if not secrets.compare_digest(
-        session_key,
-        ACCESS_KEY
-    ):
-
-        raise HTTPException(
-            status_code=401,
-            detail="Nova access required."
-        )
-
-
-def require_developer(
-    x_developer_key: Optional[str]
-):
-
-    if not DEVELOPER_KEY:
-
+    if not NOVA_ACCESS_KEY:
         raise HTTPException(
             status_code=500,
-            detail="Developer authentication is not configured."
-        )
-
-    if not x_developer_key:
-
-        raise HTTPException(
-            status_code=401,
-            detail="Developer access required."
+            detail="Nova access key is not configured."
         )
 
     if not secrets.compare_digest(
-        x_developer_key,
-        DEVELOPER_KEY
+        access_cookie,
+        NOVA_ACCESS_KEY
     ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid Nova access."
+        )
 
+
+def require_developer(request: Request):
+
+    developer_key = request.headers.get(
+        "X-Developer-Key"
+    )
+
+    if not developer_key:
         raise HTTPException(
             status_code=401,
             detail="Developer access required."
         )
 
+    if not NOVA_DEVELOPER_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Developer key is not configured."
+        )
 
-# ============================================================
-# NOVA PERMISSION ENGINE
-# ============================================================
-
-ACTION_PERMISSIONS = {
-
-    # LOW RISK
-    "open_app": "low",
-    "open_website": "low",
-    "set_timer": "low",
-    "read_screen": "low",
-    "search_web": "low",
-
-    # HIGH RISK
-    "send_message": "high",
-    "send_email": "high",
-    "delete_file": "high",
-    "change_setting": "high",
-
-    # BLOCKED
-    "change_security": "blocked",
-    "share_credentials": "blocked",
-    "disable_security": "blocked"
-}
-
-
-def get_action_permission(
-    action: str
-):
-
-    return ACTION_PERMISSIONS.get(
-        action,
-        "blocked"
-    )
-
-
-def permission_allows_automatic(
-    action: str
-):
-
-    permission = get_action_permission(
-        action
-    )
-
-    return permission == "low"
-
-
-def permission_requires_confirmation(
-    action: str
-):
-
-    permission = get_action_permission(
-        action
-    )
-
-    return permission == "high"
-
-
-def permission_blocks(
-    action: str
-):
-
-    permission = get_action_permission(
-        action
-    )
-
-    return permission == "blocked"
+    if not secrets.compare_digest(
+        developer_key,
+        NOVA_DEVELOPER_KEY
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid developer key."
+        )
 
 
 # ============================================================
-# LONG-TERM MEMORY
+# SUPABASE MEMORY
 # ============================================================
 
-def ensure_noah_identity():
+def save_memory(
+    memory_key,
+    memory_value
+):
+
+    if not supabase:
+        return False
 
     try:
 
@@ -339,31 +245,53 @@ def ensure_noah_identity():
             .table("nova_memory")
             .select("*")
             .eq("user_id", "noah")
-            .eq("memory_key", "name")
+            .eq("memory_key", memory_key)
             .execute()
         )
 
-        if not existing.data:
+        if existing.data:
 
-            supabase.table(
-                "nova_memory"
-            ).insert(
-                {
+            row_id = existing.data[0]["id"]
+
+            (
+                supabase
+                .table("nova_memory")
+                .update({
+                    "memory_value": memory_value
+                })
+                .eq("id", row_id)
+                .execute()
+            )
+
+        else:
+
+            (
+                supabase
+                .table("nova_memory")
+                .insert({
                     "user_id": "noah",
-                    "memory_key": "name",
-                    "memory_value": "Noah"
-                }
-            ).execute()
+                    "memory_key": memory_key,
+                    "memory_value": memory_value
+                })
+                .execute()
+            )
+
+        return True
 
     except Exception as error:
 
         print(
-            "Memory identity error:",
+            "Memory save error:",
             error
         )
 
+        return False
+
 
 def get_noah_memory():
+
+    if not supabase:
+        return []
 
     try:
 
@@ -387,191 +315,162 @@ def get_noah_memory():
         return []
 
 
-def save_memory(
-    memory_key: str,
-    memory_value: str
-):
+def ensure_noah_identity():
 
-    try:
+    memories = get_noah_memory()
 
-        if not memory_key.strip():
-
-            return False
-
-        if not memory_value.strip():
-
-            return False
-
-        supabase.table(
-            "nova_memory"
-        ).insert(
-            {
-                "user_id": "noah",
-                "memory_key": memory_key.strip(),
-                "memory_value": memory_value.strip()
-            }
-        ).execute()
-
-        return True
-
-    except Exception as error:
-
-        print(
-            "Memory save error:",
-            error
+    if not any(
+        memory.get("memory_key") == "name"
+        for memory in memories
+    ):
+        save_memory(
+            "name",
+            "Noah"
         )
-
-        return False
 
 
 # ============================================================
 # MEMORY EXTRACTION
 # ============================================================
 
-def extract_memory(
-    message: str
-):
+def extract_memory(message):
 
-    text = message.strip()
+    patterns = [
+        (
+            r"my favorite color is (.+)",
+            "favorite_color"
+        ),
+        (
+            r"my favorite game is (.+)",
+            "favorite_game"
+        ),
+        (
+            r"my name is (.+)",
+            "name"
+        ),
+        (
+            r"i like (.+)",
+            "likes"
+        ),
+        (
+            r"i love (.+)",
+            "likes"
+        ),
+        (
+            r"i dislike (.+)",
+            "dislikes"
+        ),
+        (
+            r"i don't like (.+)",
+            "dislikes"
+        )
+    ]
 
+    for pattern, key in patterns:
 
-    # FAVORITE COLOR
-    match = re.search(
-        r"(?:my\s+)?favorite\s+color\s+is\s+([a-zA-Z]+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if match:
-
-        color = match.group(1).strip()
-
-        return (
-            "favorite_color",
-            color
+        match = re.match(
+            pattern,
+            message.strip(),
+            re.IGNORECASE
         )
 
+        if match:
 
-    # FAVORITE GAME
-    match = re.search(
-        r"(?:my\s+)?favorite\s+game\s+is\s+(.+)",
-        text,
-        re.IGNORECASE
-    )
+            value = match.group(1).strip()
 
-    if match:
-
-        game = match.group(1).strip()
-
-        return (
-            "favorite_game",
-            game
-        )
-
-
-    # NAME
-    match = re.search(
-        r"(?:my\s+name\s+is|call\s+me)\s+([A-Za-z0-9_-]+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if match:
-
-        name = match.group(1).strip()
-
-        return (
-            "name",
-            name
-        )
-
-
-    # LIKES
-    match = re.search(
-        r"(?:i\s+like|i\s+love)\s+(.+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if match:
-
-        thing = match.group(1).strip()
-
-        return (
-            "likes",
-            thing
-        )
-
-
-    # DISLIKES
-    match = re.search(
-        r"(?:i\s+don't\s+like|i\s+dislike|i\s+hate)\s+(.+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if match:
-
-        thing = match.group(1).strip()
-
-        return (
-            "dislikes",
-            thing
-        )
-
+            if value:
+                return key, value
 
     return None
 
 
-# ============================================================
-# MEMORY REQUEST DETECTION
-# ============================================================
+def is_memory_request(message):
 
-def is_memory_request(
-    message: str
-):
+    lower = message.lower()
 
-    text = message.lower()
-
-    memory_phrases = [
-        "remember this",
+    phrases = [
         "remember that",
-        "remember",
-        "don't forget",
-        "do not forget",
-        "save this",
+        "remember this",
+        "remember my",
+        "remember i",
         "save that",
-        "keep this in mind",
-        "keep that in mind"
+        "save this",
+        "save my",
+        "don't forget",
+        "do not forget"
     ]
 
     return any(
-        phrase in text
-        for phrase in memory_phrases
+        phrase in lower
+        for phrase in phrases
     )
 
 
-# # ============================================================
-# NOVA STRUCTURED ACTION PLANNER
+# ============================================================
+# PERMISSIONS
 # ============================================================
 
-def nova_plan(message: str):
-    """
-    Converts a user request into a safe, structured plan.
+ACTION_PERMISSIONS = {
+    "open_app": "low",
+    "open_website": "low",
+    "set_timer": "low",
+    "read_screen": "low",
+    "search_web": "low",
 
-    IMPORTANT:
-    This function does NOT decide whether an action is allowed.
-    The permission engine remains the authority.
-    """
+    "send_message": "high",
+    "send_email": "high",
+    "delete_file": "high",
+    "change_setting": "high",
+
+    "change_security": "blocked",
+    "share_credentials": "blocked",
+    "disable_security": "blocked"
+}
+
+
+def get_action_permission(action):
+
+    return ACTION_PERMISSIONS.get(
+        action,
+        "blocked"
+    )
+
+
+def permission_allows_automatic(action):
+
+    return (
+        get_action_permission(action)
+        == "low"
+    )
+
+
+def permission_requires_confirmation(action):
+
+    return (
+        get_action_permission(action)
+        == "high"
+    )
+
+
+def permission_blocks(action):
+
+    return (
+        get_action_permission(action)
+        == "blocked"
+    )
+
+
+# ============================================================
+# STRUCTURED PLANNER
+# ============================================================
+
+def nova_plan(message):
 
     text = message.strip()
     lower = text.lower()
 
-    # --------------------------------------------------------
-    # MEMORY
-    # --------------------------------------------------------
-
     if is_memory_request(message):
+
         return {
             "type": "memory",
             "action": None,
@@ -579,30 +478,7 @@ def nova_plan(message: str):
             "permission": None
         }
 
-    # --------------------------------------------------------
-    # OPEN APP
-    # --------------------------------------------------------
-
-    app_match = re.search(
-        r"(?:open|launch|start)\s+(.+)",
-        text,
-        re.IGNORECASE
-    )
-
-    if app_match:
-
-        target = app_match.group(1).strip()
-
-        return {
-            "type": "action",
-            "action": "open_app",
-            "target": target,
-            "permission": get_action_permission("open_app")
-        }
-
-    # --------------------------------------------------------
-    # OPEN WEBSITE
-    # --------------------------------------------------------
+    # Website BEFORE generic open-app detection
 
     website_match = re.search(
         r"(?:open|go to|visit)\s+"
@@ -624,9 +500,24 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # TIMER
-    # --------------------------------------------------------
+    app_match = re.search(
+        r"(?:open|launch|start)\s+(.+)",
+        text,
+        re.IGNORECASE
+    )
+
+    if app_match:
+
+        target = app_match.group(1).strip()
+
+        return {
+            "type": "action",
+            "action": "open_app",
+            "target": target,
+            "permission": get_action_permission(
+                "open_app"
+            )
+        }
 
     if (
         "timer" in lower
@@ -642,15 +533,10 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # SEND MESSAGE
-    # --------------------------------------------------------
-
     if (
         "send a message" in lower
         or "send message" in lower
         or lower.startswith("text ")
-        or "text " in lower
     ):
 
         return {
@@ -662,14 +548,10 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # SEND EMAIL
-    # --------------------------------------------------------
-
     if (
         "send an email" in lower
         or "send email" in lower
-        or "email " in lower
+        or lower.startswith("email ")
     ):
 
         return {
@@ -680,10 +562,6 @@ def nova_plan(message: str):
                 "send_email"
             )
         }
-
-    # --------------------------------------------------------
-    # DELETE FILE
-    # --------------------------------------------------------
 
     if (
         "delete file" in lower
@@ -700,10 +578,6 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # CHANGE SETTING
-    # --------------------------------------------------------
-
     if (
         "change setting" in lower
         or "change the setting" in lower
@@ -719,24 +593,19 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # SECURITY ACTIONS
-    # --------------------------------------------------------
-
     if (
         "change security" in lower
         or "disable security" in lower
         or "turn off security" in lower
     ):
 
-        action = (
-            "disable_security"
-            if (
-                "disable" in lower
-                or "turn off" in lower
-            )
-            else "change_security"
-        )
+        if (
+            "disable" in lower
+            or "turn off" in lower
+        ):
+            action = "disable_security"
+        else:
+            action = "change_security"
 
         return {
             "type": "action",
@@ -746,10 +615,6 @@ def nova_plan(message: str):
                 action
             )
         }
-
-    # --------------------------------------------------------
-    # WEB SEARCH
-    # --------------------------------------------------------
 
     if any(
         phrase in lower
@@ -771,10 +636,6 @@ def nova_plan(message: str):
             )
         }
 
-    # --------------------------------------------------------
-    # NORMAL CHAT
-    # --------------------------------------------------------
-
     return {
         "type": "chat",
         "action": None,
@@ -785,13 +646,8 @@ def nova_plan(message: str):
 
 def nova_execute(
     plan,
-    message: str
+    message
 ):
-    """
-    Converts a structured plan into an execution request.
-
-    This function still does NOT perform real device actions.
-    """
 
     if not plan:
         return None
@@ -806,7 +662,6 @@ def nova_execute(
 
         action = plan["action"]
 
-        # Backend permission check.
         permission = get_action_permission(
             action
         )
@@ -839,73 +694,171 @@ def nova_execute(
             }
 
     return None
+
+
+    # ============================================================
+# ROOT / LOGIN
 # ============================================================
-# CALCULATOR
-# ============================================================
 
-def nova_calculate(
-    expression: str
-):
+@app.get("/")
+def root(request: Request):
 
-    try:
+    access_cookie = request.cookies.get(
+        "nova_access"
+    )
 
-        allowed = (
-            "0123456789+-*/(). "
+    if not access_cookie:
+        return RedirectResponse("/login")
+
+    if NOVA_ACCESS_KEY:
+
+        if not secrets.compare_digest(
+            access_cookie,
+            NOVA_ACCESS_KEY
+        ):
+            return RedirectResponse("/login")
+
+    return FileResponse("index.html")
+
+
+@app.get("/login")
+def login_page():
+    return FileResponse("login.html")
+
+
+@app.post("/auth")
+def authenticate(data: LoginRequest):
+
+    if not NOVA_ACCESS_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Nova access key is not configured."
         )
 
-        cleaned = "".join(
-            character
-            for character in expression
-            if character in allowed
+    if not secrets.compare_digest(
+        data.key,
+        NOVA_ACCESS_KEY
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid access key."
         )
 
-        if not cleaned:
+    response = RedirectResponse(
+        "/",
+        status_code=303
+    )
 
-            return (
-                "I couldn't find a calculation."
-            )
+    response.set_cookie(
+        key="nova_access",
+        value=NOVA_ACCESS_KEY,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=604800
+    )
 
-        result = eval(
-            cleaned,
-            {"__builtins__": {}},
-            {}
-        )
-
-        return str(result)
-
-    except Exception:
-
-        return (
-            "I couldn't calculate that."
-        )
+    return response
 
 
 # ============================================================
-# REQUEST MODELS
+# DEVELOPER
 # ============================================================
 
-class ChatMessage(BaseModel):
-
-    message: str
-
-
-class LoginRequest(BaseModel):
-
-    key: str
+@app.get("/developer-login")
+def developer_login():
+    return FileResponse(
+        "developer-login.html"
+    )
 
 
-class VisionMessage(BaseModel):
+@app.get("/developer")
+def developer_page(request: Request):
 
-    message: str
-    image: str
-    
-    
-class ConfirmationRequest(BaseModel):
+    require_developer(request)
 
-    confirmation_id: str
+    return FileResponse(
+        "developer.html"
+    )
+
+
+@app.get("/developer/status")
+def developer_status(request: Request):
+
+    require_developer(request)
+
+    return {
+        "status": "developer access granted",
+        "nova": "online"
+    }
+
 
 # ============================================================
-# PERMISSION TEST ENDPOINT
+# HEALTH
+# ============================================================
+
+@app.get("/health")
+def health():
+
+    return {
+        "status": "online",
+        "nova": "Nova Core"
+    }
+
+
+# ============================================================
+# MEMORY
+# ============================================================
+
+@app.get("/memory")
+def memory_status(request: Request):
+
+    require_access(request)
+
+    return {
+        "memories": get_noah_memory()
+    }
+
+
+# ============================================================
+# CONVERSATION
+# ============================================================
+
+@app.post("/conversation/clear")
+def conversation_clear(request: Request):
+
+    require_access(request)
+
+    session_id = get_session_id(request)
+
+    clear_conversation(
+        session_id
+    )
+
+    return {
+        "status": "cleared"
+    }
+
+
+@app.get("/conversation/status")
+def conversation_status(request: Request):
+
+    require_access(request)
+
+    session_id = get_session_id(request)
+
+    conversation = get_conversation(
+        session_id
+    )
+
+    return {
+        "session_id": session_id,
+        "messages": len(conversation)
+    }
+
+
+# ============================================================
+# PERMISSION TEST
 # ============================================================
 
 @app.get("/permissions/{action}")
@@ -930,102 +883,7 @@ def permission_test(
 
 
 # ============================================================
-# HOME
-# ============================================================
-
-@app.get("/")
-def home(
-    request: Request
-):
-
-    session_key = request.cookies.get(
-        "nova_access"
-    )
-
-    if (
-        not session_key
-        or not ACCESS_KEY
-    ):
-
-        return RedirectResponse(
-            "/login"
-        )
-
-    if not secrets.compare_digest(
-        session_key,
-        ACCESS_KEY
-    ):
-
-        return RedirectResponse(
-            "/login"
-        )
-
-    return FileResponse(
-        "index.html"
-    )
-
-
-# ============================================================
-# LOGIN
-# ============================================================
-
-@app.get("/login")
-def login():
-
-    return FileResponse(
-        "login.html"
-    )
-
-
-# ============================================================
-# AUTHENTICATION
-# ============================================================
-
-@app.post("/auth")
-def authenticate(
-    data: LoginRequest
-):
-
-    if not ACCESS_KEY:
-
-        raise HTTPException(
-            status_code=500,
-            detail="Nova access is not configured."
-        )
-
-    if not secrets.compare_digest(
-        data.key,
-        ACCESS_KEY
-    ):
-
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid access key."
-        )
-
-    response = RedirectResponse(
-        "/",
-        status_code=303
-    )
-
-    response.set_cookie(
-        key="nova_access",
-        value=ACCESS_KEY,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        max_age=60 * 60 * 24 * 7
-    )
-
-    return response
-
-
-# ============================================================
-# CHAT
-# ============================================================
-
-# ============================================================
-# ACTION CONFIRMATION
+# CONFIRMATION
 # ============================================================
 
 @app.post("/actions/confirm")
@@ -1055,13 +913,12 @@ def confirm_action(
     action = confirmation["action"]
     target = confirmation["target"]
 
-    # Re-check permission on the server.
+    # Always re-check the permission.
+
     permission = get_action_permission(
         action
     )
 
-    # Never trust the old confirmation
-    # if the permission policy changed.
     if permission != "high":
 
         remove_confirmation(
@@ -1073,12 +930,13 @@ def confirm_action(
             detail="This action is no longer permitted."
         )
 
-    # IMPORTANT:
-    # No real action is executed yet.
-    # This phase only proves confirmation.
+    # Consume the confirmation.
+
     remove_confirmation(
         data.confirmation_id
     )
+
+    # No real external action is executed yet.
 
     return {
         "status": "confirmed",
@@ -1089,8 +947,21 @@ def confirm_action(
             "No external action has been executed yet."
         )
     }
-    
-    @app.post("/chat")
+
+
+# ============================================================
+
+
+    return None
+
+    }
+
+
+# ============================================================
+# CHAT
+# ============================================================
+
+@app.post("/chat")
 def chat(
     data: ChatMessage,
     request: Request
@@ -1098,30 +969,19 @@ def chat(
 
     require_access(request)
 
-    session_id = get_session_id(
-        request
-    )
+    session_id = get_session_id(request)
 
-    # --------------------------------------------------------
-    # CREATE STRUCTURED PLAN
-    # --------------------------------------------------------
-
-    plan = nova_plan(
-        data.message
-    )
-
-    # --------------------------------------------------------
-    # EXECUTION / PERMISSION CHECK
-    # --------------------------------------------------------
+    plan = nova_plan(data.message)
 
     execution = nova_execute(
         plan,
         data.message
     )
 
-    # --------------------------------------------------------
-    # MEMORY
-    # --------------------------------------------------------
+
+    # ========================================================
+    # MEMORY REQUEST
+    # ========================================================
 
     if plan["type"] == "memory":
 
@@ -1179,20 +1039,22 @@ def chat(
             "plan": plan
         }
 
-    # --------------------------------------------------------
+
+    # ========================================================
     # BLOCKED ACTION
-    # --------------------------------------------------------
+    # ========================================================
 
     if (
         execution
-        and execution.get("status") == "blocked"
+        and execution.get("status")
+        == "blocked"
     ):
 
         reply = (
             f"I can't perform "
             f"'{execution['action']}'. "
-            f"That action is blocked by Nova's "
-            f"security policy."
+            f"That action is blocked by "
+            f"Nova's security policy."
         )
 
         add_conversation_message(
@@ -1213,82 +1075,59 @@ def chat(
             "execution": execution
         }
 
-    # --------------------------------------------------------
-    # HIGH-RISK ACTION
-    # --------------------------------------------------------
 
-    if (
-    execution
-    and execution.get("status")
-    == "confirmation_required"
-):
-
-    confirmation_id = create_confirmation(
-        session_id,
-        execution["action"],
-        execution["target"]
-    )
-
-    reply = (
-        f"That action requires your confirmation, Noah.\n\n"
-        f"Action: {execution['action']}\n"
-        f"Target: {execution['target']}\n\n"
-        f"Confirmation ID: {confirmation_id}\n\n"
-        f"No action has been executed."
-    )
-
-    add_conversation_message(
-        session_id,
-        "user",
-        data.message
-    )
-
-    add_conversation_message(
-        session_id,
-        "assistant",
-        reply
-    )
-
-    return {
-        "reply": reply,
-        "plan": plan,
-        "execution": execution,
-        "confirmation_id": confirmation_id
-    }
-        == "confirmation_required"
-    ):
-
-        reply = (
-            f"That requires your confirmation, Noah. "
-            f"Requested action: "
-            f"{execution['action']}."
-        )
-
-        add_conversation_message(
-            session_id,
-            "user",
-            data.message
-        )
-
-        add_conversation_message(
-            session_id,
-            "assistant",
-            reply
-        )
-
-        return {
-            "reply": reply,
-            "plan": plan,
-            "execution": execution
-        }
-
-    # --------------------------------------------------------
-    # LOW-RISK ACTION
-    # --------------------------------------------------------
+    # ========================================================
+    # CONFIRMATION REQUIRED
+    # ========================================================
 
     if (
         execution
-        and execution.get("status") == "allowed"
+        and execution.get("status")
+        == "confirmation_required"
+    ):
+
+        confirmation_id = create_confirmation(
+            session_id,
+            execution["action"],
+            execution["target"]
+        )
+
+        reply = (
+            f"That action requires your confirmation, Noah.\n\n"
+            f"Action: {execution['action']}\n"
+            f"Target: {execution['target']}\n\n"
+            f"Confirmation ID: {confirmation_id}\n\n"
+            f"No action has been executed."
+        )
+
+        add_conversation_message(
+            session_id,
+            "user",
+            data.message
+        )
+
+        add_conversation_message(
+            session_id,
+            "assistant",
+            reply
+        )
+
+        return {
+            "reply": reply,
+            "plan": plan,
+            "execution": execution,
+            "confirmation_id": confirmation_id
+        }
+
+
+    # ========================================================
+    # LOW-RISK ACTION
+    # ========================================================
+
+    if (
+        execution
+        and execution.get("status")
+        == "allowed"
     ):
 
         reply = (
@@ -1315,9 +1154,10 @@ def chat(
             "execution": execution
         }
 
-    # --------------------------------------------------------
-    # NORMAL AI CHAT
-    # --------------------------------------------------------
+
+    # ========================================================
+    # AI CHAT
+    # ========================================================
 
     ensure_noah_identity()
 
@@ -1415,7 +1255,12 @@ You are Noah's personal AI assistant.
             max_tokens=400
         )
 
-        reply = response.choices[0].message.content
+        reply = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
 
         add_conversation_message(
             session_id,
@@ -1445,102 +1290,52 @@ You are Noah's personal AI assistant.
             status_code=500,
             detail="Nova encountered an AI error."
         )
-    # ========================================================
-    # MEMORY
-    # ========================================================
-
-    if tool == "memory":
-
-        extracted = extract_memory(
-            data.message
-        )
-
-        add_conversation_message(
-            session_id,
-            "user",
-            data.message
-        )
-
-        if extracted:
-
-            memory_key, memory_value = extracted
-
-            saved = save_memory(
-                memory_key,
-                memory_value
-            )
-
-            if saved:
-
-                reply = (
-                    f"Understood, Noah. "
-                    f"I've saved that "
-                    f"{memory_key.replace('_', ' ')} "
-                    f"as {memory_value}."
-                )
-
-            else:
-
-                reply = (
-                    "I understood the memory, "
-                    "but I couldn't save it."
-                )
-
-        else:
-
-            reply = (
-                "I can remember that, Noah, "
-                "but I need the specific fact "
-                "you want me to save."
-            )
-
-        add_conversation_message(
-            session_id,
-            "assistant",
-            reply
-        )
-
-        return {
-            "reply": reply
-        }
 
 
-    # ========================================================
-    # CALCULATOR
-    # ========================================================
+# ============================================================
+# VISION MODELS
+# ============================================================
 
-    if tool == "calculator":
+@app.get("/vision-models")
+def vision_models(request: Request):
 
-        result = nova_calculate(
-            data.message
-        )
+    require_access(request)
 
-        add_conversation_message(
-            session_id,
-            "user",
-            data.message
-        )
-
-        reply = (
-            f"The result is {result}."
-        )
-
-        add_conversation_message(
-            session_id,
-            "assistant",
-            reply
-        )
-
-        return {
-            "reply": reply
-        }
+    return {
+        "vision_models": [
+            "google/gemma-3-4b-it",
+            "google/gemma-3-12b-it",
+            "deepseek-ai/DeepSeek-V4-Flash-Vision-Exp",
+            "google/gemma-3-27b-it",
+            "Qwen/Qwen3-VL-30B-A3B-Instruct",
+            "Qwen/Qwen2.5-VL-72B-Instruct",
+            "Qwen/Qwen3-VL-235B-A22B-Instruct",
+            "Qwen/Qwen3-VL-235B-A22B-Thinking",
+            "baidu/ERNIE-4.5-VL-424B-A47B-Base-PT",
+            "zai-org/GLM-4.5V",
+            "CohereLabs/aya-vision-32b",
+            "zai-org/GLM-4.5V-FP8"
+        ]
+    }
 
 
-    # ========================================================
-    # LOAD LONG-TERM MEMORY
-    # ========================================================
+# ============================================================
+# VISION
+# ============================================================
 
-    ensure_noah_identity()
+@app.post("/vision")
+def vision(
+    data: VisionMessage,
+    request: Request
+):
+
+    require_access(request)
+
+    session_id = get_session_id(request)
+
+    conversation = get_conversation(
+        session_id
+    )
 
     memories = get_noah_memory()
 
@@ -1550,151 +1345,29 @@ You are Noah's personal AI assistant.
         for memory in memories
     )
 
-
-    # ========================================================
-    # CURRENT CONVERSATION
-    # ========================================================
-
-    conversation = get_conversation(
-        session_id
-    )
-
-
-    # ========================================================
-    # SYSTEM PROMPT
-    # ========================================================
-
     system_prompt = f"""
 You are Nova, Noah's personal AI assistant.
 
-You are a sophisticated futuristic AI assistant.
+You are analyzing an image for Noah.
 
-PERSONALITY:
+Be accurate and honest.
 
-- Calm, intelligent and sophisticated.
-- Composed and confident.
-- Address the user as Noah when appropriate.
-- Professional without sounding robotic.
-- Use subtle dry humor occasionally.
-- Give concise answers for simple questions.
-- Give detailed answers when necessary.
-- Be proactive when something useful is obvious.
-- Never invent personal information.
-- Accuracy always takes priority over personality.
-- Never pretend you completed an action that
-  you did not actually perform.
-- Never claim to be the fictional character JARVIS.
-- Do not copy exact JARVIS dialogue.
+Do not invent details that are not visible.
 
-TWO SOURCES OF INFORMATION:
+If something cannot be determined from the image,
+say so.
 
-1. CURRENT CONVERSATION
+Use a calm, intelligent and sophisticated tone.
 
-Things actually said during this conversation.
+You may address the user as Noah.
 
-2. LONG-TERM MEMORY
+Never claim to have performed an action unless
+a real tool actually performed it.
 
-Facts explicitly stored in Nova's memory.
-
-Never mix these sources.
-
-LONG-TERM MEMORY:
+Long-term memory:
 
 {memory_text}
-
-STRICT MEMORY INTEGRITY:
-
-- Never invent a memory.
-- Never fabricate Noah's past.
-- Never invent places Noah has visited.
-- Never invent things Noah owns.
-- Never invent things Noah said.
-- Never invent dates or events.
-- Never invent habits.
-- Never invent experiences.
-- Never invent quotes.
-- Never invent emotional experiences.
-- Never invent personal history.
-- Never turn an assumption into a fact.
-- Never add fictional details to sound personal.
-- Never claim "I remember" unless the information
-  actually exists in the conversation or memory.
-- If information is unavailable, say you don't know.
-- If uncertain, say you are uncertain.
-- Accuracy is more important than personality.
-
-EXAMPLE:
-
-If Noah says:
-
-"My favorite color is blue."
-
-The only supported fact is:
-
-"Noah's favorite color is blue."
-
-Do NOT invent:
-
-- a rainy evening walk
-- a park
-- an office wall
-- mood lighting
-- a quote
-- a date
-- a past experience
-
-unless Noah actually provided those details.
-
-CONVERSATION CONTINUITY:
-
-Use previous messages to understand:
-
-"it"
-"that"
-"this"
-"the previous one"
-"what about that?"
-"continue"
-"why?"
-"what did you mean?"
-
-Do not turn conversation context into
-long-term memory unless the memory system
-explicitly saves it.
-
-MEMORY QUESTIONS:
-
-If Noah asks what you remember, only report
-facts actually present in LONG-TERM MEMORY.
-
-If something is not there, say:
-
-"I don't have that saved in my long-term memory."
-
-Never make something up.
-
-ACTION SAFETY:
-
-You may discuss possible actions, but never
-claim that a device action was completed unless
-a real tool actually performed it and returned
-a successful result.
-
-Never bypass permission requirements.
-
-Never treat a high-risk action as low-risk.
-
-Never treat a blocked action as allowed.
-
-You are Nova.
-
-You are Noah's personal AI assistant.
 """
-
-
-    # ========================================================
-    # BUILD MESSAGES
-    # ========================================================
 
     messages = [
         {
@@ -1710,24 +1383,35 @@ You are Noah's personal AI assistant.
     messages.append(
         {
             "role": "user",
-            "content": data.message
+            "content": [
+                {
+                    "type": "text",
+                    "text": data.message
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": data.image
+                    }
+                }
+            ]
         }
     )
-
-
-    # ========================================================
-    # AI RESPONSE
-    # ========================================================
 
     try:
 
         response = client.chat.completions.create(
-            model="Qwen/Qwen3-4B-Instruct-2507",
+            model="Qwen/Qwen3-VL-30B-A3B-Instruct",
             messages=messages,
-            max_tokens=400
-         )
+            max_tokens=500
+        )
 
-        reply = response.choices[0].message.content
+        reply = (
+            response
+            .choices[0]
+            .message
+            .content
+        )
 
         add_conversation_message(
             session_id,
@@ -1742,18 +1426,27 @@ You are Noah's personal AI assistant.
         )
 
         return {
-            "reply": reply,
-            "plan": plan
+            "reply": reply
         }
 
     except Exception as error:
 
         print(
-            "Chat error:",
+            "Vision error:",
             error
         )
 
         raise HTTPException(
             status_code=500,
-            detail="Nova encountered an AI error."
+            detail="Nova encountered a 
+ vision error."
+         )
+ 
+         
+        
+            
+    
+    ."
+
+        )
         )
