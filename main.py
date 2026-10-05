@@ -633,4 +633,4 @@ def developer_status(
 
     return {
         "status": "authenticated"
-    }     
+    }
