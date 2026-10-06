@@ -435,7 +435,106 @@ def permission_blocks(action: str):
         == "blocked"
     )
 
+# ============================================================
+# TIMER ENGINE
+# ============================================================
 
+active_timers = {}
+
+
+def parse_timer_seconds(text: str):
+    lower = text.lower()
+
+    minute_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b",
+        lower
+    )
+
+    second_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:seconds?|secs?|s)\b",
+        lower
+    )
+
+    hour_match = re.search(
+        r"(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b",
+        lower
+    )
+
+    total_seconds = 0
+
+    if hour_match:
+        total_seconds += int(
+            float(hour_match.group(1)) * 3600
+        )
+
+    if minute_match:
+        total_seconds += int(
+            float(minute_match.group(1)) * 60
+        )
+
+    if second_match:
+        total_seconds += int(
+            float(second_match.group(1))
+        )
+
+    if total_seconds <= 0:
+        return None
+
+    return total_seconds
+
+
+def create_timer(
+    session_id: str,
+    seconds: int
+):
+    timer_id = secrets.token_urlsafe(16)
+
+    end_time = time.time() + seconds
+
+    active_timers[timer_id] = {
+        "timer_id": timer_id,
+        "session_id": session_id,
+        "duration_seconds": seconds,
+        "created_at": time.time(),
+        "end_time": end_time,
+        "finished": False
+    }
+
+    return timer_id
+
+
+def get_timer(timer_id: str):
+    return active_timers.get(
+        timer_id
+    )
+
+
+def update_finished_timers():
+    now = time.time()
+
+    for timer in active_timers.values():
+
+        if (
+            not timer["finished"]
+            and now >= timer["end_time"]
+        ):
+            timer["finished"] = True
+
+
+def format_duration(seconds: int):
+    if seconds < 60:
+        return f"{seconds} second(s)"
+
+    minutes = seconds // 60
+    remaining_seconds = seconds % 60
+
+    if remaining_seconds == 0:
+        return f"{minutes} minute(s)"
+
+    return (
+        f"{minutes} minute(s) "
+        f"and {remaining_seconds} second(s)"
+    )
 # ============================================================
 # STRUCTURED PLANNER
 # ============================================================
@@ -1002,39 +1101,82 @@ def chat(
             }
         }
 
-    # --------------------------------------------------------
-    # LOW-RISK ACTION
-    # --------------------------------------------------------
+    
 
-    if (
-        isinstance(execution, dict)
-        and execution.get("status")
-        == "allowed"
-    ):
+    # ----------------------------------------------------
+    # REAL TIMER TOOL
+    # ----------------------------------------------------
 
-        action = execution["action"]
-        target = execution["target"]
+    if action == "set_timer":
 
-        # These actions are currently permission-approved,
-        # but their real external tools are not connected yet.
+        seconds = parse_timer_seconds(
+            target
+        )
+
+        if not seconds:
+
+            reply = (
+                "I couldn't determine the timer duration, Noah. "
+                "Please specify a duration such as "
+                "'30 seconds' or '5 minutes'."
+            )
+
+            return {
+                "reply": reply,
+                "plan": plan,
+                "execution": {
+                    "status": "invalid_timer",
+                    "action": action,
+                    "target": target
+                }
+            }
+
+        timer_id = create_timer(
+            session_id,
+            seconds
+        )
+
+        timer = get_timer(
+            timer_id
+        )
 
         reply = (
-            f"The action '{action}' is permitted, Noah, "
-            "but the corresponding external tool is not "
-            "connected yet. I have not performed the action."
+            f"Timer started, Noah. "
+            f"{format_duration(seconds)}."
         )
 
         return {
             "reply": reply,
             "plan": plan,
             "execution": {
-                "status": "permitted_not_connected",
-                "action": action,
-                "target": target,
-                "permission": "low"
+                "status": "executed",
+                "action": "set_timer",
+                "timer_id": timer_id,
+                "duration_seconds": seconds,
+                "end_time": timer["end_time"]
             }
         }
 
+    # ----------------------------------------------------
+    # OTHER LOW-RISK ACTIONS
+    # ----------------------------------------------------
+
+    reply = (
+        f"The action '{action}' is permitted, Noah, "
+        "but that external tool is not connected yet. "
+        "I have not performed the action."
+    )
+
+    return {
+        "reply": reply,
+        "plan": plan,
+        "execution": {
+            "status": "permitted_not_connected",
+            "action": action,
+            "target": target,
+            "permission": "low"
+        }
+    }
     # --------------------------------------------------------
     # LOAD MEMORY
     # --------------------------------------------------------
