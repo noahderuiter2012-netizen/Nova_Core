@@ -1106,9 +1106,13 @@ def chat(
     # ----------------------------------------------------
     # REAL TIMER TOOL
     # ----------------------------------------------------
-    action = execution.get("action")
-    target = execution.get("target")
+    if not isinstance(execution, dict):
+    execution = {}
 
+action = execution.get("action")
+target = execution.get("target")
+
+if action == "set_timer":
     if action == "set_timer":
         seconds = parse_timer_seconds(target)
 
