@@ -1106,17 +1106,13 @@ def chat(
     # ----------------------------------------------------
     # REAL TIMER TOOL
     # ----------------------------------------------------
-action = execution.get("action")
-target = execution.get("target")
+    action = execution.get("action")
+    target = execution.get("target")
 
-if action == "set_timer":
+    if action == "set_timer":
+        seconds = parse_timer_seconds(target)
 
-    seconds = parse_timer_seconds(
-         target
-        )
-
-          if not seconds:
-                # Keep your existing code here
+        if not seconds:
             reply = (
                 "I couldn't determine the timer duration, Noah. "
                 "Please specify a duration such as "
@@ -1138,9 +1134,7 @@ if action == "set_timer":
             seconds
         )
 
-        timer = get_timer(
-            timer_id
-        )
+        timer = get_timer(timer_id)
 
         reply = (
             f"Timer started, Noah. "
@@ -1158,7 +1152,6 @@ if action == "set_timer":
                 "end_time": timer["end_time"]
             }
         }
-
     # ----------------------------------------------------
     # OTHER LOW-RISK ACTIONS
     # ----------------------------------------------------
