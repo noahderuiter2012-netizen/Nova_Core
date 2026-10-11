@@ -1442,8 +1442,6 @@ def timer_status(timer_id: str, request: Request):
         "duration_seconds": timer["duration_seconds"],
         "end_time": timer["end_time"]
     }
-
-
 # ============================================================
 # CONVERSATION MANAGEMENT
 # ============================================================
