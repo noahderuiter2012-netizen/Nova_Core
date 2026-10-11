@@ -18,34 +18,39 @@ from supabase import create_client, Client
 app = FastAPI(title="Nova Core")
 
 
-import os
+# ============================================================
+# ENVIRONMENT
+# ============================================================
 
-HF_TOKEN = os.getenv("HF_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+NOVA_ACCESS_KEY = os.getenv("NOVA_ACCESS_KEY")
+NOVA_DEVELOPER_KEY = os.getenv("NOVA_DEVELOPER_KEY")
 
 
 # ============================================================
-# AI CLIENTS
+# AI CLIENT
 # ============================================================
 
 if not GROQ_API_KEY:
-    raise RuntimeError("GROQ_API_KEY is missing.")
+    raise RuntimeError("GROQ_API_KEY is missing. Add it in Render Environment.")
 
-if not HF_TOKEN:
-    raise RuntimeError("HF_TOKEN is missing.")
-
-# Nova's main chat model uses Groq
+# Main chat uses Groq.
 client = OpenAI(
     base_url="https://api.groq.com/openai/v1",
     api_key=GROQ_API_KEY
 )
 
-# Keep the existing Hugging Face connection for vision
-vision_client = OpenAI(
-    base_url="https://router.huggingface.co/v1",
-    api_key=HF_TOKEN
-)
-
+# Vision remains on Hugging Face. Chat can start even if vision is not configured.
+vision_client = None
+if HF_TOKEN:
+    vision_client = OpenAI(
+        base_url="https://router.huggingface.co/v1",
+        api_key=HF_TOKEN
+    )
 
 
 # ============================================================
@@ -494,6 +499,7 @@ def create_timer(
 ):
     timer_id = secrets.token_urlsafe(16)
 
+
     end_time = time.time() + seconds
 
     active_timers[timer_id] = {
@@ -503,7 +509,6 @@ def create_timer(
         "created_at": time.time(),
         "end_time": end_time,
         "finished": False
-
     }
 
     return timer_id
@@ -995,6 +1000,7 @@ def chat(
         message
     )
 
+
     # --------------------------------------------------------
     # MEMORY
     # --------------------------------------------------------
@@ -1005,8 +1011,6 @@ def chat(
 
         if memory:
 
-
-        
             saved = save_memory(
                 memory["memory_key"],
                 memory["memory_value"]
@@ -1359,7 +1363,7 @@ Noah is the user.
 
     try:
 
-        response = vision_client.chat.completions.create(
+        response = client.chat.completions.create(
             model="openai/gpt-oss-20b",
             messages=messages,
             max_tokens=500
@@ -1494,8 +1498,8 @@ def memory_status(
     request: Request
 ):
     require_access(request)
+     memories = get_noah_memory()
 
-    memories = get_noah_memory()
 
     return {
         "memories": memories,
@@ -1506,8 +1510,7 @@ def memory_status(
 @app.post("/memory/test")
 def memory_test(
     request: Request
-
-    ):
+):
     require_access(request)
 
     memories = get_noah_memory()
@@ -1667,9 +1670,15 @@ Persistent memory:
     # VISION AI REQUEST
     # --------------------------------------------------------
 
+    if vision_client is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Vision is not configured. Add HF_TOKEN in Render Environment."
+        )
+
     try:
 
-        response = client.chat.completions.create(
+        response = vision_client.chat.completions.create(
             model="Qwen/Qwen3-VL-30B-A3B-Instruct",
             messages=messages,
             max_tokens=500
@@ -1766,7 +1775,7 @@ def status(
     return {
         "name": "Nova",
         "status": "online",
-        "brain": "Qwen/Qwen3-4B-Instruct-2507",
+        "brain": "openai/gpt-oss-20b (Groq)",
         "vision": "Qwen/Qwen3-VL-30B-A3B-Instruct",
         "persistent_memory": (
             supabase is not None
@@ -1779,3 +1788,4 @@ def status(
 # ============================================================
 # END PART 2
 # ============================================================
+    
