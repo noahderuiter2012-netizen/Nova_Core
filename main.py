@@ -1486,7 +1486,6 @@ def conversation_status(
         )
     }
 
-
 # ============================================================
 # MEMORY MANAGEMENT
 # ============================================================
@@ -1496,8 +1495,8 @@ def memory_status(
     request: Request
 ):
     require_access(request)
-     memories = get_noah_memory()
 
+    memories = get_noah_memory()
 
     return {
         "memories": memories,
@@ -1515,9 +1514,9 @@ def memory_test(
 
     return {
         "status": "ok",
-        "persistent_memory": memories
+        "memories": memories,
+        "count": len(memories)
     }
-
 
 # ============================================================
 # VISION MODELS
