@@ -1358,7 +1358,7 @@ Noah is the user.
     try:
 
         response = client.chat.completions.create(
-            model="Qwen/Qwen3-4B-Instruct-2507",
+            model="openai/gpt-oss-20b",
             messages=messages,
             max_tokens=500
         )
