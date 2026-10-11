@@ -498,6 +498,7 @@ def create_timer(
         "created_at": time.time(),
         "end_time": end_time,
         "finished": False
+
     }
 
     return timer_id
@@ -999,6 +1000,8 @@ def chat(
 
         if memory:
 
+
+        
             saved = save_memory(
                 memory["memory_key"],
                 memory["memory_value"]
@@ -1103,16 +1106,16 @@ def chat(
 
     
 
-    # ----------------------------------------------------
+    # --------------------------------------------------------
     # REAL TIMER TOOL
-    # ----------------------------------------------------
+    # --------------------------------------------------------
+
     if not isinstance(execution, dict):
-    execution = {}
+        execution = {}
 
-action = execution.get("action")
-target = execution.get("target")
+    action = execution.get("action")
+    target = execution.get("target")
 
-if action == "set_timer":
     if action == "set_timer":
         seconds = parse_timer_seconds(target)
 
@@ -1122,7 +1125,6 @@ if action == "set_timer":
                 "Please specify a duration such as "
                 "'30 seconds' or '5 minutes'."
             )
-
             return {
                 "reply": reply,
                 "plan": plan,
@@ -1133,17 +1135,12 @@ if action == "set_timer":
                 }
             }
 
-        timer_id = create_timer(
-            session_id,
-            seconds
-        )
-
+        timer_id = create_timer(session_id, seconds)
         timer = get_timer(timer_id)
+        reply = f"Timer started, Noah. {format_duration(seconds)}."
 
-        reply = (
-            f"Timer started, Noah. "
-            f"{format_duration(seconds)}."
-        )
+        add_conversation_message(session_id, "user", message)
+        add_conversation_message(session_id, "assistant", reply)
 
         return {
             "reply": reply,
@@ -1156,26 +1153,28 @@ if action == "set_timer":
                 "end_time": timer["end_time"]
             }
         }
-    # ----------------------------------------------------
+
+    # --------------------------------------------------------
     # OTHER LOW-RISK ACTIONS
-    # ----------------------------------------------------
+    # --------------------------------------------------------
 
-    reply = (
-        f"The action '{action}' is permitted, Noah, "
-        "but that external tool is not connected yet. "
-        "I have not performed the action."
-    )
-
-    return {
-        "reply": reply,
-        "plan": plan,
-        "execution": {
-            "status": "permitted_not_connected",
-            "action": action,
-            "target": target,
-            "permission": "low"
+    if execution.get("status") == "allowed":
+        reply = (
+            f"The action '{action}' is permitted, Noah, "
+            "but that external tool is not connected yet. "
+            "I have not performed the action."
+        )
+        return {
+            "reply": reply,
+            "plan": plan,
+            "execution": {
+                "status": "permitted_not_connected",
+                "action": action,
+                "target": target,
+                "permission": "low"
+            }
         }
-    }
+
     # --------------------------------------------------------
     # LOAD MEMORY
     # --------------------------------------------------------
@@ -1409,6 +1408,34 @@ Noah is the user.
 
 
 # ============================================================
+# TIMER STATUS
+# ============================================================
+
+@app.get("/timer/{timer_id}")
+def timer_status(timer_id: str, request: Request):
+    require_access(request)
+    session_id = get_session_id(request)
+    timer = get_timer(timer_id)
+
+    if not timer or timer.get("session_id") != session_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Timer not found."
+        )
+
+    update_finished_timers()
+    remaining = max(0, int(timer["end_time"] - time.time()))
+
+    return {
+        "timer_id": timer_id,
+        "finished": timer["finished"],
+        "remaining_seconds": remaining,
+        "duration_seconds": timer["duration_seconds"],
+        "end_time": timer["end_time"]
+    }
+
+
+# ============================================================
 # CONVERSATION MANAGEMENT
 # ============================================================
 
@@ -1474,7 +1501,8 @@ def memory_status(
 @app.post("/memory/test")
 def memory_test(
     request: Request
-):
+
+    ):
     require_access(request)
 
     memories = get_noah_memory()
