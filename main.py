@@ -1357,7 +1357,7 @@ Noah is the user.
 
     try:
 
-        response = client.chat.completions.create(
+        response = vision_client.chat.completions.create(
             model="openai/gpt-oss-20b",
             messages=messages,
             max_tokens=500
