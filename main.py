@@ -18,9 +18,11 @@ from supabase import create_client, Client
 app = FastAPI(title="Nova Core")
 
 
+import os
 
-# Add this alongside your other environment variables
+HF_TOKEN = os.getenv("HF_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+
 
 # ============================================================
 # AI CLIENTS
