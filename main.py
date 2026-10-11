@@ -18,29 +18,32 @@ from supabase import create_client, Client
 app = FastAPI(title="Nova Core")
 
 
-# ============================================================
-# ENVIRONMENT
-# ============================================================
 
-HF_TOKEN = os.getenv("HF_TOKEN")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-NOVA_ACCESS_KEY = os.getenv("NOVA_ACCESS_KEY")
-NOVA_DEVELOPER_KEY = os.getenv("NOVA_DEVELOPER_KEY")
-
+# Add this alongside your other environment variables
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # ============================================================
-# AI CLIENT
+# AI CLIENTS
 # ============================================================
+
+if not GROQ_API_KEY:
+    raise RuntimeError("GROQ_API_KEY is missing.")
 
 if not HF_TOKEN:
     raise RuntimeError("HF_TOKEN is missing.")
 
+# Nova's main chat model uses Groq
 client = OpenAI(
+    base_url="https://api.groq.com/openai/v1",
+    api_key=GROQ_API_KEY
+)
+
+# Keep the existing Hugging Face connection for vision
+vision_client = OpenAI(
     base_url="https://router.huggingface.co/v1",
     api_key=HF_TOKEN
 )
+
 
 
 # ============================================================
