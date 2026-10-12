@@ -576,15 +576,20 @@ if target_path.exists():
                 )
 
 
+    
     proposal = create_proposal(
         kind="workspace",
         target=filename,
         new_content=source,
-        old_content=existing_content,,
-        u
-},
+        old_content=existing_content,
+        metadata={
+            "path": filename,
+            "expected_exists": existing_content is not None,
+            "source": "chat_programming_workflow",
+        },
         reason="Generated from chat; review before writing.",
     )
+
 
     return {
         "status": "proposal_created",
