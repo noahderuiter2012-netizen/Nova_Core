@@ -519,8 +519,9 @@ def run_programming_workflow(task: str, client) -> dict:
         }
 
     
-    task_lower = task.lower()
+    
 
+    
     task_lower = task.lower()
 
     clean_task = (
@@ -552,31 +553,27 @@ def run_programming_workflow(task: str, client) -> dict:
     else:
         filename = "nova_program.py"
 
+    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    target_path = workspace_path(filename)
+    existing_content = None
 
-    
-WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-target_path = workspace_path(filename)
-existing_content = None
+    if target_path.exists():
+        if requested_file:
+            existing_content = read_text_file(target_path)
+        else:
+            stem = Path(filename).stem
+            index = 2
 
-if target_path.exists():
-    if requested_file:
-        existing_content = read_text_file(target_path)
-    else:
-        stem = Path(filename).stem
-        index = 2
+            while workspace_path(filename).exists():
+                filename = f"{stem}_{index}.py"
+                index += 1
 
-        while workspace_path(filename).exists():
-            filename = f"{stem}_{index}.py"
-            index += 1
+                if index > 100:
+                    raise HTTPException(
+                        409,
+                        "Could not find an unused filename.",
+                    )
 
-            if index > 100:
-                raise HTTPException(
-                    409,
-                    "Could not find an unused filename.",
-                )
-
-
-    
     proposal = create_proposal(
         kind="workspace",
         target=filename,
@@ -589,7 +586,6 @@ if target_path.exists():
         },
         reason="Generated from chat; review before writing.",
     )
-
 
     return {
         "status": "proposal_created",
@@ -604,6 +600,7 @@ if target_path.exists():
         "code": source,
         "proposal": proposal,
     }
+
 
 
 # ============================================================
