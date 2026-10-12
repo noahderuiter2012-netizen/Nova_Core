@@ -806,97 +806,7 @@ def create_programming_router(
             ),
         )
         
-    # --------------------------------------------------------
-    # APPROVE GITHUB PROPOSAL
-    # --------------------------------------------------------
-
-    @programming_router.post(
-        "/github/proposals/{proposal_id}/approve"
-    )
-    def approve_github_proposal(proposal_id: str):
-        proposal = get_proposal(proposal_id, "github")
-        meta = proposal["metadata"]
-
-        require_github_config(meta["repo"])
-
-        expected_exists = meta.get("expected_exists", True)
-
-        # Check that the file has not changed since proposal creation.
-        if expected_exists:
-            current = github_get_file(
-                meta["repo"],
-                meta["path"],
-                meta["branch"],
-            )
-
-            if current["sha"] != meta["sha"]:
-                del PENDING_PROPOSALS[proposal_id]
-                raise HTTPException(
-                    409,
-                    "The GitHub file changed since the proposal "
-                    "was created. Create a new proposal.",
-                )
-
-        else:
-            try:
-                github_get_file(
-                    meta["repo"],
-                    meta["path"],
-                    meta["branch"],
-                )
-
-            except HTTPException as exc:
-                if exc.status_code != 404:
-                    raise
-
-            else:
-                del PENDING_PROPOSALS[proposal_id]
-                raise HTTPException(
-                    409,
-                    "A GitHub file with this path now exists. "
-                    "Create a new update proposal.",
-                )
-
-        import base64
-        from urllib.parse import quote
-
-        encoded_path = quote(meta["path"], safe="/")
-
-        body = {
-            "message": meta["message"],
-            "content": base64.b64encode(
-                proposal["content"].encode("utf-8")
-            ).decode("ascii"),
-            "branch": meta["branch"],
-        }
-
-        # Existing files require their current SHA.
-        if expected_exists:
-            body["sha"] = meta["sha"]
-
-        result = github_request(
-            "PUT",
-            f"/repos/{meta['repo']}/contents/{encoded_path}",
-            body,
-        )
-
-        del PENDING_PROPOSALS[proposal_id]
-
-        return {
-            "status": "committed",
-            "repo": meta["repo"],
-            "path": meta["path"],
-            "commit_sha": result.get(
-                "commit", {}
-            ).get("sha"),
-            "html_url": result.get(
-                "commit", {}
-            ).get("html_url"),
-            "file_url": result.get(
-                "content", {}
-            ).get("html_url"),
-        }
-
+    
     # --------------------------------------------------------
     # CHECK CODE
     # --------------------------------------------------------
@@ -957,12 +867,7 @@ def create_programming_router(
             ),
         )
 
-    # --------------------------------------------------------
-    # RETURN ROUTER
-    # --------------------------------------------------------
-
     
-
     # --------------------------------------------------------
     # APPROVE GITHUB PROPOSAL
     # --------------------------------------------------------
