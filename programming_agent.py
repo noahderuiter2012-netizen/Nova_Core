@@ -700,10 +700,7 @@ def create_programming_router(
             ).get("html_url"),
         }
 
-    # --------------------------------------------------------
-    # CODE CHECK
-    # --------------------------------------------------------
-
+    
     @programming_router.post("/check")
     def check_code(data: CheckRequest):
         language = data.language.lower().strip()
@@ -711,14 +708,12 @@ def create_programming_router(
         if language in {"python", "py"}:
             try:
                 ast.parse(data.code)
-
                 return {
                     "language": "python",
                     "valid_syntax": True,
                     "message": "Python syntax looks valid.",
                     "execution_performed": False,
                 }
-
             except SyntaxError as exc:
                 return {
                     "language": "python",
@@ -729,17 +724,15 @@ def create_programming_router(
                     "execution_performed": False,
                 }
 
-               if language in {"json"}:
+        if language == "json":
             try:
                 json.loads(data.code)
-
                 return {
                     "language": "json",
                     "valid_syntax": True,
                     "message": "JSON is valid.",
                     "execution_performed": False,
                 }
-
             except json.JSONDecodeError as exc:
                 return {
                     "language": "json",
@@ -759,67 +752,3 @@ def create_programming_router(
             ),
             "execution_performed": False,
         }
-
-    @programming_router.post("/generate")
-    def generate_code(data: GenerateRequest):
-        if client is None:
-            raise HTTPException(
-                503, "Nova's language model is unavailable."
-            )
-
-        prompt = (
-            "You are Nova's programming assistant. "
-            "Help with programming tasks accurately. "
-            "Never claim you changed a file or repository "
-            "unless an approved tool action actually did so. "
-            "Do not include secrets or request access tokens. "
-            "Return the code and a concise explanation.\n\n"
-            f"Language: {data.language}\n"
-            f"Task:\n{data.task}\n\n"
-            f"Existing code, if provided:\n"
-            f"{data.existing_code}"
-        )
-
-        try:
-            response = client.chat.completions.create(
-                model=os.getenv(
-                    "NOVA_PROGRAMMING_MODEL",
-                    "Qwen/Qwen2.5-7B-Instruct",
-                ),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a careful programming "
-                            "assistant. Produce useful, safe code."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
-                temperature=0.2,
-            )
-
-            answer = (
-                response.choices[0].message.content or ""
-            )
-
-            return {
-                "status": "generated",
-                "language": data.language,
-                "answer": answer,
-                "file_written": False,
-                "repository_changed": False,
-                "approval_required_for_changes": True,
-            }
-
-        except Exception:
-            raise HTTPException(
-                502,
-                "Code generation failed. Check Nova's model "
-                "configuration and server logs.",
-            )
-
-    return programming_router
