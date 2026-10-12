@@ -963,6 +963,7 @@ def create_programming_router(
 
     return programming_router
     
+                
                 if language in {"python", "py"}:
             try:
                 ast.parse(data.code)
@@ -981,6 +982,7 @@ def create_programming_router(
                     "column": exc.offset,
                     "execution_performed": False,
                 }
+
     # --------------------------------------------------------
     # APPROVE GITHUB PROPOSAL
     # --------------------------------------------------------
