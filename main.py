@@ -1760,18 +1760,119 @@ Persistent memory:
             "reply": reply
         }
 
+    
     except Exception as error:
+        error_type = type(error).__name__
+        error_text = str(error)
 
         print(
-            "Vision error:",
-            error
+            "Chat error type:",
+            error_type
+        )
+        print(
+            "Chat error details:",
+            error_text
         )
 
-        raise HTTPException(
-            status_code=500,
-            detail="Nova encountered a vision error."
-        )
+        # Ask Nova to explain the failure naturally.
+        # This may work if the original failure was temporary.
+        try:
+            explanation_response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are Nova, a calm and intelligent "
+                            "personal AI assistant. Explain technical "
+                            "failures naturally and conversationally. "
+                            "Explain only what the supplied error "
+                            "actually supports. Do not guess, invent "
+                            "a cause, claim you fixed anything, or "
+                            "reveal credentials, tokens, or secrets. "
+                            "If the exact cause is unclear, say so. "
+                            "Briefly explain what happened and the "
+                            "most useful next step. Do not use headings "
+                            "or bullet points."
+                        )
+                    },
+                    {
+                        "role": "user",
+                        "content": (
+                            "My chat request failed. Explain this "
+                            "error in your own words.\n"
+                            f"Error type: {error_type}\n"
+                            f"Error details: {error_text}"
+                        )
+                    }
+                ],
+                max_tokens=180
+            )
 
+            explanation = (
+                explanation_response
+                .choices[0]
+                .message
+                .content
+            )
+
+            if explanation and explanation.strip():
+                return {
+                    "reply": explanation.strip(),
+                    "plan": plan,
+                    "execution": {
+                        "status": "error",
+                        "error_type": error_type
+                    }
+                }
+
+        except Exception as explanation_error:
+            print(
+                "Nova error explanation unavailable:",
+                type(explanation_error).__name__
+            )
+
+        # Fallback when the AI service cannot explain the error.
+        # Never pretend Nova generated this explanation.
+        if error_type == "RateLimitError":
+            fallback = (
+                "I couldn't complete your request because the AI "
+                "service is limiting or refusing further requests. "
+                "The exact reason needs checking in the service's "
+                "error details."
+            )
+        elif error_type in (
+            "APIConnectionError",
+            "APITimeoutError"
+        ):
+            fallback = (
+                "I couldn't reach the AI service in time to answer "
+                "you. The connection may have failed or the service "
+                "may not have responded. I couldn't verify the exact "
+                "cause."
+            )
+        elif error_type == "AuthenticationError":
+            fallback = (
+                "I couldn't authenticate with the AI service. "
+                "Its API credentials or access configuration need "
+                "to be checked."
+            )
+        else:
+            fallback = (
+                "I wasn't able to complete your request. My attempt "
+                "to explain the technical error also failed, so I "
+                "can't reliably identify the exact cause yet. "
+                "The server error log has more details."
+            )
+
+        return {
+            "reply": fallback,
+            "plan": plan,
+            "execution": {
+                "status": "error",
+                "error_type": error_type
+            }
+        }
 
 # ============================================================
 # HEALTH CHECK
