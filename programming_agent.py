@@ -719,7 +719,6 @@ def create_programming_router(
         # Write to a temporary file in the destination directory,
         # then replace the target atomically.
         temp_path = None
-
         try:
             with tempfile.NamedTemporaryFile(
                 mode="w",
