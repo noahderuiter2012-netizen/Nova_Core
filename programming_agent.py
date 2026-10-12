@@ -521,17 +521,19 @@ def run_programming_workflow(task: str, client) -> dict:
     
     task_lower = task.lower()
 
-    clean_task = (
-    task.replace("`", "")
-    .replace('"', "")
-    .replace("'", "")
-)
+    task_lower = task.lower()
 
-requested_file = re.search(
-    r'\b(?:file\s+(?:named|called)|named|called|filename\s*(?:is|:)?|save(?:\s+it)?\s+as)\s*([A-Za-z0-9_.-]+\.py)\b',
-    clean_task,
-    flags=re.IGNORECASE,
-)
+    clean_task = (
+        task.replace("`", "")
+        .replace('"', "")
+        .replace("'", "")
+    )
+
+    requested_file = re.search(
+        r'\b(?:file\s+(?:named|called)|named|called|filename\s*(?:is|:)?|save(?:\s+it)?\s+as)\s*([A-Za-z0-9_.-]+\.py)\b',
+        clean_task,
+        flags=re.IGNORECASE,
+    )
 
     if requested_file:
         filename = validate_relative_path(
