@@ -809,6 +809,53 @@ def create_programming_router(
         
 
     
+    
+    # --------------------------------------------------------
+    # GITHUB PROPOSAL
+    # --------------------------------------------------------
+
+    @programming_router.post("/github/proposals")
+    def github_proposal(data: GitHubProposalRequest):
+        require_github_config(data.repo)
+
+        try:
+            existing = github_get_file(
+                data.repo,
+                data.path,
+                data.branch,
+            )
+            old_content = existing["content"]
+            expected_exists = True
+            current_sha = existing["sha"]
+
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+
+            old_content = None
+            expected_exists = False
+            current_sha = None
+
+        return create_proposal(
+            kind="github",
+            target=f"{data.repo}/{data.path}",
+            new_content=data.content,
+            old_content=old_content,
+            metadata={
+                "repo": data.repo,
+                "path": data.path,
+                "branch": data.branch,
+                "sha": current_sha,
+                "expected_exists": expected_exists,
+                "message": data.message,
+            },
+            reason=(
+                "Create a new GitHub file; approval is required."
+                if not expected_exists
+                else "Update an existing GitHub file; approval is required."
+            ),
+        )
+
     # --------------------------------------------------------
     # APPROVE GITHUB PROPOSAL
     # --------------------------------------------------------
@@ -820,32 +867,38 @@ def create_programming_router(
         proposal = get_proposal(proposal_id, "github")
         meta = proposal["metadata"]
 
-         
         require_github_config(meta["repo"])
 
-        # Re-check the file before committing.
         expected_exists = meta.get("expected_exists", True)
 
+        # Check that the file has not changed since proposal creation.
         if expected_exists:
             current = github_get_file(
-                meta["repo"], meta["path"], meta["branch"]
+                meta["repo"],
+                meta["path"],
+                meta["branch"],
             )
 
-                if current["sha"] != meta["sha"]:
+            if current["sha"] != meta["sha"]:
                 del PENDING_PROPOSALS[proposal_id]
                 raise HTTPException(
                     409,
                     "The GitHub file changed since the proposal "
                     "was created. Create a new proposal.",
                 )
+
         else:
             try:
                 github_get_file(
-                    meta["repo"], meta["path"], meta["branch"]
+                    meta["repo"],
+                    meta["path"],
+                    meta["branch"],
                 )
+
             except HTTPException as exc:
                 if exc.status_code != 404:
                     raise
+
             else:
                 del PENDING_PROPOSALS[proposal_id]
                 raise HTTPException(
@@ -867,32 +920,9 @@ def create_programming_router(
             "branch": meta["branch"],
         }
 
-        # Updates require a SHA; creating a new file does not.
+        # Existing files require their current SHA.
         if expected_exists:
             body["sha"] = meta["sha"]
-
-        if current["sha"] != meta["sha"]:
-            del PENDING_PROPOSALS[proposal_id]
-
-            raise HTTPException(
-                409,
-                "The GitHub file changed since the proposal "
-                "was created. Create a new proposal.",
-            )
-
-        import base64
-        from urllib.parse import quote
-
-        encoded_path = quote(meta["path"], safe="/")
-
-        body = {
-            "message": meta["message"],
-            "content": base64.b64encode(
-                proposal["content"].encode("utf-8")
-            ).decode("ascii"),
-            "sha": current["sha"],
-            "branch": meta["branch"],
-        }
 
         result = github_request(
             "PUT",
@@ -912,13 +942,76 @@ def create_programming_router(
             "html_url": result.get(
                 "commit", {}
             ).get("html_url"),
+            "file_url": result.get(
+                "content", {}
+            ).get("html_url"),
         }
 
-    
+    # --------------------------------------------------------
+    # CHECK CODE
+    # --------------------------------------------------------
+
     @programming_router.post("/check")
     def check_code(data: CheckRequest):
         language = data.language.lower().strip()
 
+        # Validate Python without executing it.
+        if language in {"python", "py"}:
+            try:
+                ast.parse(data.code)
+
+                return {
+                    "language": "python",
+                    "valid_syntax": True,
+                    "message": "Python syntax looks valid.",
+                    "execution_performed": False,
+                }
+
+            except SyntaxError as exc:
+                return {
+                    "language": "python",
+                    "valid_syntax": False,
+                    "message": exc.msg,
+                    "line": exc.lineno,
+                    "column": exc.offset,
+                    "execution_performed": False,
+                }
+
+        # Validate JSON.
+        if language == "json":
+            try:
+                json.loads(data.code)
+
+                return {
+                    "language": "json",
+                    "valid_syntax": True,
+                    "message": "JSON syntax looks valid.",
+                    "execution_performed": False,
+                }
+
+            except json.JSONDecodeError as exc:
+                return {
+                    "language": "json",
+                    "valid_syntax": False,
+                    "message": exc.msg,
+                    "line": exc.lineno,
+                    "column": exc.colno,
+                    "execution_performed": False,
+                }
+
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Syntax validation is supported for "
+                "Python and JSON only."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # RETURN ROUTER
+    # --------------------------------------------------------
+
+    return programming_router
     
         if language in {"python", "py"}:
             try:
@@ -1024,4 +1117,71 @@ def create_programming_router(
                 "commit", {}
             ).get("html_url"),
         }
+
+    # --------------------------------------------------------
+    # CHECK CODE
+    # --------------------------------------------------------
+
+    @programming_router.post("/check")
+    def check_code(data: CheckRequest):
+        language = data.language.lower().strip()
+
+        # Validate Python without executing it.
+        if language in {"python", "py"}:
+            try:
+                ast.parse(data.code)
+
+                return {
+                    "language": "python",
+                    "valid_syntax": True,
+                    "message": "Python syntax looks valid.",
+                    "execution_performed": False,
+                }
+
+            except SyntaxError as exc:
+                return {
+                    "language": "python",
+                    "valid_syntax": False,
+                    "message": exc.msg,
+                    "line": exc.lineno,
+                    "column": exc.offset,
+                    "execution_performed": False,
+                }
+
+        # Validate JSON.
+        if language == "json":
+            try:
+                json.loads(data.code)
+
+                return {
+                    "language": "json",
+                    "valid_syntax": True,
+                    "message": "JSON syntax looks valid.",
+                    "execution_performed": False,
+                }
+
+            except json.JSONDecodeError as exc:
+                return {
+                    "language": "json",
+                    "valid_syntax": False,
+                    "message": exc.msg,
+                    "line": exc.lineno,
+                    "column": exc.colno,
+                    "execution_performed": False,
+                }
+
+        # Reject languages that are not supported.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Syntax validation is supported for "
+                "Python and JSON only."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # RETURN ROUTER
+    # --------------------------------------------------------
+
+    return programming_router
 
