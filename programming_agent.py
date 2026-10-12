@@ -551,17 +551,28 @@ def run_programming_workflow(task: str, client) -> dict:
         filename = "nova_program.py"
 
 
-    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
-    stem = Path(filename).stem
-    index = 2
+    
+WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+target_path = workspace_path(filename)
+existing_content = None
 
-    while workspace_path(filename).exists():
-        filename = f"{stem}_{index}.py"
-        index += 1
-        if index > 100:
-            raise HTTPException(
-                409, "Could not find an unused filename."
-            )
+if target_path.exists():
+    if requested_file:
+        existing_content = read_text_file(target_path)
+    else:
+        stem = Path(filename).stem
+        index = 2
+
+        while workspace_path(filename).exists():
+            filename = f"{stem}_{index}.py"
+            index += 1
+
+            if index > 100:
+                raise HTTPException(
+                    409,
+                    "Could not find an unused filename.",
+                )
+
 
     proposal = create_proposal(
         kind="workspace",
