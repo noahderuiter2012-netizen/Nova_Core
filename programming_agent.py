@@ -964,6 +964,7 @@ def create_programming_router(
     return programming_router
     
         if language in {"python", "py"}:
+                if language in {"python", "py"}:
             try:
                 ast.parse(data.code)
                 return {
