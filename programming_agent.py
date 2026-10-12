@@ -752,3 +752,62 @@ def create_programming_router(
             ),
             "execution_performed": False,
         }
+
+    @programming_router.post("/generate")
+    def generate_code(data: GenerateRequest):
+        if client is None:
+            raise HTTPException(
+                503, "Nova's language model is unavailable."
+            )
+
+        prompt = (
+            "You are Nova's programming assistant. "
+            "Help with programming tasks accurately. "
+            "Do not claim to change files unless an approved "
+            "action actually changed them.\n\n"
+            f"Language: {data.language}\n"
+            f"Task:\n{data.task}\n\n"
+            f"Existing code:\n{data.existing_code}"
+        )
+
+        try:
+            response = client.chat.completions.create(
+                model="openai/gpt-oss-20b",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a careful programming "
+                            "assistant. Produce useful code "
+                            "and explain it clearly."
+                        ),
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    },
+                ],
+                max_tokens=2000,
+            )
+
+            answer = (
+                response.choices[0].message.content or ""
+            )
+
+            return {
+                "status": "generated",
+                "language": data.language,
+                "answer": answer,
+                "file_written": False,
+                "repository_changed": False,
+            }
+
+        except Exception:
+            raise HTTPException(
+                502,
+                "Code generation failed. Check Nova's "
+                "model configuration and server logs.",
+            )
+
+    return programming_router
+    
