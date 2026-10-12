@@ -770,8 +770,7 @@ def create_programming_router(
     # --------------------------------------------------------
 
         @programming_router.post("/github/proposals")
-    def github_proposal(data: GitHubProposalRequest):
-    def github_proposal(data: GitHubProposalRequest):
+        def github_proposal(data: GitHubProposalRequest):
         # Support creating a new file or updating an existing one.
         try:
             existing = github_get_file(
