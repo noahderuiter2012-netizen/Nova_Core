@@ -983,6 +983,58 @@ def chat(
 
     message = data.message.strip()
 
+    # --------------------------------------------------------
+    # PROGRAMMING WORKFLOW
+    # --------------------------------------------------------
+
+    if is_programming_request(message):
+        result = run_programming_workflow(message, client)
+
+        if result.get("status") == "proposal_created":
+            proposal = result.get("proposal", {})
+            proposal_id = proposal.get("proposal_id")
+
+            reply = (
+                f"I prepared {result.get('path', 'a Python file')}.\n\n"
+                "Plan completed: code generated and Python syntax "
+                "validated successfully.\n\n"
+                "I have NOT executed the code, written a file, or "
+                "changed your GitHub repository.\n\n"
+                f"Proposal ID: {proposal_id}\n\n"
+                "Review the proposal before approving it. "
+                "The file will only be written after explicit approval."
+            )
+        elif result.get("status") == "validation_failed":
+            reply = (
+                "I generated Python code, but its syntax check failed. "
+                "I have not executed it, proposed a file, or written anything.\n\n"
+                f"Validation message: {result.get('message', 'Unknown syntax error')}\n"
+                f"Line: {result.get('line', 'unknown')}"
+            )
+        else:
+            reply = (
+                "The programming workflow did not create a file proposal. "
+                "Check the workflow result for details."
+            )
+
+        add_conversation_message(session_id, "user", message)
+        add_conversation_message(session_id, "assistant", reply)
+
+        return {
+            "reply": reply,
+            "plan": {
+                "type": "programming",
+                "steps": result.get("plan", []),
+            },
+            "execution": {
+                "status": result.get("status"),
+                "execution_performed": False,
+                "file_written": False,
+                "repository_changed": False,
+            },
+            "programming": result,
+        }
+        
     if not message:
         raise HTTPException(
             status_code=400,
