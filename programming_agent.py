@@ -823,10 +823,53 @@ def create_programming_router(
 
         require_github_config(meta["repo"])
 
-        # Re-read the file before committing to detect changes.
-        current = github_get_file(
-            meta["repo"], meta["path"], meta["branch"]
-        )
+                # Re-check the file before committing.
+        expected_exists = meta.get("expected_exists", True)
+
+        if expected_exists:
+            current = github_get_file(
+                meta["repo"], meta["path"], meta["branch"]
+            )
+
+            if current["sha"] != meta["sha"]:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "The GitHub file changed since the proposal "
+                    "was created. Create a new proposal.",
+                )
+        else:
+            try:
+                github_get_file(
+                    meta["repo"], meta["path"], meta["branch"]
+                )
+            except HTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+            else:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "A GitHub file with this path now exists. "
+                    "Create a new update proposal.",
+                )
+
+        import base64
+        from urllib.parse import quote
+
+        encoded_path = quote(meta["path"], safe="/")
+
+        body = {
+            "message": meta["message"],
+            "content": base64.b64encode(
+                proposal["content"].encode("utf-8")
+            ).decode("ascii"),
+            "branch": meta["branch"],
+        }
+
+        # Updates require a SHA; creating a new file does not.
+        if expected_exists:
+            body["sha"] = meta["sha"]
 
         if current["sha"] != meta["sha"]:
             del PENDING_PROPOSALS[proposal_id]
