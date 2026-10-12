@@ -1940,7 +1940,11 @@ def status(
 # PROGRAMMING AGENT
 # ============================================================
 
-from programming_agent import create_programming_router
+from programming_agent import (
+    create_programming_router,
+    is_programming_request,
+    run_programming_workflow,
+)
 
 app.include_router(
     create_programming_router(
