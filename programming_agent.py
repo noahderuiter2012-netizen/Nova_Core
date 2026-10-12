@@ -919,8 +919,7 @@ def create_programming_router(
     def check_code(data: CheckRequest):
         language = data.language.lower().strip()
 
-        if language in {"python", "py"}:
-        
+    
         if language in {"python", "py"}:
             try:
                 ast.parse(data.code)
