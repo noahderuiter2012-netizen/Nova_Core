@@ -330,7 +330,88 @@ function addMessage(text, type) {
 
     chat.scrollTop =
         chat.scrollHeight;
+} 
+function addProgrammingProposal(programming) {
+    const proposal = programming?.proposal;
+    if (!proposal?.proposal_id) return;
+
+    const card = document.createElement("div");
+    card.className = "message nova";
+
+    const heading = document.createElement("strong");
+    heading.textContent = "Programming proposal";
+    card.appendChild(heading);
+
+    const details = document.createElement("p");
+    details.textContent =
+        "File: " + (programming.path || "unknown") +
+        "\nPython syntax: " +
+        (programming.valid_syntax ? "Valid" : "Invalid") +
+        "\nExecution: Not performed" +
+        "\nSaved: No — awaiting your approval";
+    card.appendChild(details);
+
+    if (programming.code) {
+        const preview = document.createElement("pre");
+        preview.style.whiteSpace = "pre-wrap";
+        preview.style.overflowX = "auto";
+        preview.textContent = programming.code;
+        card.appendChild(preview);
+    }
+
+    const approve = document.createElement("button");
+    approve.textContent = "Approve and save";
+    approve.type = "button";
+
+    approve.onclick = async () => {
+        const confirmed = window.confirm(
+            "Save " + (programming.path || "this file") +
+            " to Nova's temporary workspace? The code will not be executed."
+        );
+
+        if (!confirmed) return;
+
+        approve.disabled = true;
+        approve.textContent = "Saving…";
+
+        try {
+            const response = await fetch(
+                "/programming/workspace/proposals/" +
+                    encodeURIComponent(proposal.proposal_id) +
+                    "/approve",
+                { method: "POST" }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    data.detail || "Approval failed."
+                );
+            }
+
+            details.textContent =
+                "Saved to the temporary workspace: " +
+                data.path +
+                "\nCode execution: Not performed.";
+
+            approve.textContent = "Saved";
+            approve.disabled = true;
+        } catch (error) {
+            details.textContent =
+                "The file was not confirmed as saved: " +
+                error.message;
+
+            approve.textContent = "Try approval again";
+            approve.disabled = false;
+        }
+    };
+
+    card.appendChild(approve);
+    chat.appendChild(card);
+    chat.scrollTop = chat.scrollHeight;
 }
+    
 
 
 /* =========================
