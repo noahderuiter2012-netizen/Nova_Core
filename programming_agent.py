@@ -418,6 +418,159 @@ def get_proposal(proposal_id: str, kind: str) -> dict:
 
     return proposal
 
+# ============================================================
+# CHAT PROGRAMMING WORKFLOW
+# ============================================================
+
+def is_programming_request(message: str) -> bool:
+    """Recognize explicit requests to build software."""
+    text = message.lower()
+
+    build_intent = re.search(
+        r"\b(build|create|make|write|generate|implement|develop)\b",
+        text,
+    )
+    programming_topic = re.search(
+        r"\b(program|code|script|app|application|website|"
+        r"game|calculator|software|python|javascript|html|"
+        r"css|api|bot|tool)\b",
+        text,
+    )
+
+    return bool(build_intent and programming_topic)
+
+
+def run_programming_workflow(task: str, client) -> dict:
+    """
+    Generate Python, validate syntax, and propose a workspace file.
+    Never executes generated code or writes before approval.
+    """
+    if client is None:
+        raise HTTPException(
+            503, "Nova's language model is unavailable."
+        )
+
+    plan = [
+        "Understand the programming request.",
+        "Generate Python source code.",
+        "Validate syntax without executing the program.",
+        "Prepare a workspace file proposal.",
+        "Wait for explicit approval before writing.",
+    ]
+
+    prompt = (
+        "Write a complete, safe Python program for this request. "
+        "Return source code only, without Markdown fences. "
+        "Do not claim to run the program or save a file. "
+        "Avoid destructive actions and credential access.\n\n"
+        f"Request: {task}"
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-20b",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are Nova's programming agent. "
+                        "Return complete Python source code only."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=3000,
+        )
+        answer = response.choices[0].message.content or ""
+    except Exception:
+        raise HTTPException(
+            502, "Code generation failed. No file was proposed."
+        )
+
+    match = re.search(
+        r"```(?:python|py)?\s*(.*?)```",
+        answer,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    source = (match.group(1) if match else answer).strip() + "\n"
+
+    if not source.strip():
+        raise HTTPException(
+            502, "Nova returned empty code."
+        )
+
+    if len(source.encode("utf-8")) > MAX_PROPOSAL_SIZE:
+        raise HTTPException(
+            413, "Generated code is too large."
+        )
+
+    try:
+        ast.parse(source)
+    except SyntaxError as exc:
+        return {
+            "status": "validation_failed",
+            "valid_syntax": False,
+            "message": exc.msg,
+            "line": exc.lineno,
+            "execution_performed": False,
+            "file_written": False,
+            "repository_changed": False,
+            "plan": plan,
+        }
+
+    task_lower = task.lower()
+    if "calculator" in task_lower:
+        filename = "calculator.py"
+    elif "guessing game" in task_lower:
+        filename = "guessing_game.py"
+    elif "todo" in task_lower or "to-do" in task_lower:
+        filename = "todo_app.py"
+    elif "quiz" in task_lower:
+        filename = "quiz.py"
+    elif "timer" in task_lower:
+        filename = "timer.py"
+    else:
+        filename = "nova_program.py"
+
+    WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
+    stem = Path(filename).stem
+    index = 2
+
+    while workspace_path(filename).exists():
+        filename = f"{stem}_{index}.py"
+        index += 1
+        if index > 100:
+            raise HTTPException(
+                409, "Could not find an unused filename."
+            )
+
+    proposal = create_proposal(
+        kind="workspace",
+        target=filename,
+        new_content=source,
+        old_content=None,
+        metadata={
+            "path": filename,
+            "expected_exists": False,
+            "source": "chat_programming_workflow",
+        },
+        reason="Generated from chat; review before writing.",
+    )
+
+    return {
+        "status": "proposal_created",
+        "language": "python",
+        "path": filename,
+        "valid_syntax": True,
+        "validation_message": "Python syntax looks valid.",
+        "execution_performed": False,
+        "file_written": False,
+        "repository_changed": False,
+        "plan": plan,
+        "code": source,
+        "proposal": proposal,
+    }
+
 
 # ============================================================
 # ROUTER FACTORY
