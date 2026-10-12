@@ -518,8 +518,26 @@ def run_programming_workflow(task: str, client) -> dict:
             "plan": plan,
         }
 
+    
     task_lower = task.lower()
-    if "calculator" in task_lower:
+
+    clean_task = (
+        task.replace("`", "")
+        .replace('"', "")
+        .replace("'", "")
+    )
+
+    requested_file = re.search(
+        r'\b(?:file\s+(?:named|called)|named|called|filename\s*(?:is|:)?|save(?:\s+it)?\s+as)\s*([A-Za-z0-9_.-]+\.py)\b',
+        clean_task,
+        flags=re.IGNORECASE,
+    )
+
+    if requested_file:
+        filename = validate_relative_path(
+            requested_file.group(1)
+        )
+    elif "calculator" in task_lower:
         filename = "calculator.py"
     elif "guessing game" in task_lower:
         filename = "guessing_game.py"
@@ -531,6 +549,7 @@ def run_programming_workflow(task: str, client) -> dict:
         filename = "timer.py"
     else:
         filename = "nova_program.py"
+
 
     WORKSPACE_DIR.mkdir(parents=True, exist_ok=True)
     stem = Path(filename).stem
