@@ -581,11 +581,7 @@ if target_path.exists():
         target=filename,
         new_content=source,
         old_content=existing_content,,
-        metadata={
-            metadata={
-    "path": filename,
-    "expected_exists": existing_content is not None,
-    "source": "chat_programming_workflow",
+        u
 },
         reason="Generated from chat; review before writing.",
     )
