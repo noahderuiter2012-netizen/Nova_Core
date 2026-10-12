@@ -1934,3 +1934,18 @@ def status(
 # END PART 2
 # ============================================================
     
+
+
+# ============================================================
+# PROGRAMMING AGENT
+# ============================================================
+
+from programming_agent import create_programming_router
+
+app.include_router(
+    create_programming_router(
+        require_access,
+        get_session_id,
+        client,
+    )
+)
