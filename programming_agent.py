@@ -920,9 +920,17 @@ def create_programming_router(
         language = data.language.lower().strip()
 
         if language in {"python", "py"}:
+        
+        if language in {"python", "py"}:
             try:
                 ast.parse(data.code)
-                
+                return {
+                    "language": "python",
+                    "valid_syntax": True,
+                    "message": "Python syntax looks valid.",
+                    "execution_performed": False,
+                }
+            except SyntaxError as exc:
                 return {
                     "language": "python",
                     "valid_syntax": False,
@@ -931,6 +939,7 @@ def create_programming_router(
                     "column": exc.offset,
                     "execution_performed": False,
                 }
+
 
     # --------------------------------------------------------
     # APPROVE GITHUB PROPOSAL
