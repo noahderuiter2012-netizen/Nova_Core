@@ -821,7 +821,8 @@ def create_programming_router(
         proposal = get_proposal(proposal_id, "github")
         meta = proposal["metadata"]
 
-         require_github_config(meta["repo"])
+         
+        require_github_config(meta["repo"])
 
         # Re-check the file before committing.
         expected_exists = meta.get("expected_exists", True)
