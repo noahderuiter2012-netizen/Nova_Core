@@ -578,7 +578,7 @@ if target_path.exists():
         kind="workspace",
         target=filename,
         new_content=source,
-        old_content=None,
+        old_content=existing_content,,
         metadata={
             "path": filename,
             "expected_exists": False,
