@@ -832,9 +832,7 @@ def create_programming_router(
                 meta["repo"], meta["path"], meta["branch"]
             )
 
-            )
-
-            if current["sha"] != meta["sha"]:
+                if current["sha"] != meta["sha"]:
                 del PENDING_PROPOSALS[proposal_id]
                 raise HTTPException(
                     409,
