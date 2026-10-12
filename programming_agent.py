@@ -929,99 +929,89 @@ def create_programming_router(
                     "execution_performed": False,
                 }
             except SyntaxError as exc:
-                return {
-                    "language": "python",
-                    "valid_syntax": False,
-                    "message": exc.msg,
-                    "line": exc.lineno,
-                    "column": exc.offset,
-                    "execution_performed": False,
-                }
 
-        if language == "json":
+    # --------------------------------------------------------
+    # APPROVE GITHUB PROPOSAL
+    # --------------------------------------------------------
+
+    @programming_router.post(
+        "/github/proposals/{proposal_id}/approve"
+    )
+    def approve_github_proposal(proposal_id: str):
+        proposal = get_proposal(proposal_id, "github")
+        meta = proposal["metadata"]
+
+        require_github_config(meta["repo"])
+
+        expected_exists = meta.get("expected_exists", True)
+
+        # Re-check the file immediately before committing.
+        if expected_exists:
+            current = github_get_file(
+                meta["repo"],
+                meta["path"],
+                meta["branch"],
+            )
+
+            if current["sha"] != meta["sha"]:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "The GitHub file changed since the proposal "
+                    "was created. Create a new proposal.",
+                )
+        else:
             try:
-                json.loads(data.code)
-                return {
-                    "language": "json",
-                    "valid_syntax": True,
-                    "message": "JSON is valid.",
-                    "execution_performed": False,
-                }
-            except json.JSONDecodeError as exc:
-                return {
-                    "language": "json",
-                    "valid_syntax": False,
-                    "message": exc.msg,
-                    "line": exc.lineno,
-                    "column": exc.colno,
-                    "execution_performed": False,
-                }
+                github_get_file(
+                    meta["repo"],
+                    meta["path"],
+                    meta["branch"],
+                )
+            except HTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+            else:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "A GitHub file with this path now exists. "
+                    "Create a new update proposal.",
+                )
 
-        return {
-            "language": language,
-            "valid_syntax": None,
-            "message": (
-                "Automatic syntax checking is not supported "
-                "for this language yet."
-            ),
-            "execution_performed": False,
+        import base64
+        from urllib.parse import quote
+
+        encoded_path = quote(meta["path"], safe="/")
+
+        body = {
+            "message": meta["message"],
+            "content": base64.b64encode(
+                proposal["content"].encode("utf-8")
+            ).decode("ascii"),
+            "branch": meta["branch"],
         }
 
-    @programming_router.post("/generate")
-    def generate_code(data: GenerateRequest):
-        if client is None:
-            raise HTTPException(
-                503, "Nova's language model is unavailable."
-            )
+        # GitHub requires a SHA for updates, but not new files.
+        if expected_exists:
+            body["sha"] = meta["sha"]
 
-        prompt = (
-            "You are Nova's programming assistant. "
-            "Help with programming tasks accurately. "
-            "Do not claim to change files unless an approved "
-            "action actually changed them.\n\n"
-            f"Language: {data.language}\n"
-            f"Task:\n{data.task}\n\n"
-            f"Existing code:\n{data.existing_code}"
+        result = github_request(
+            "PUT",
+            f"/repos/{meta['repo']}/contents/{encoded_path}",
+            body,
         )
 
-        try:
-            response = client.chat.completions.create(
-                model="openai/gpt-oss-20b",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "You are a careful programming "
-                            "assistant. Produce useful code "
-                            "and explain it clearly."
-                        ),
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt,
-                    },
-                ],
-                max_tokens=2000,
-            )
+        del PENDING_PROPOSALS[proposal_id]
 
-            answer = (
-                response.choices[0].message.content or ""
-            )
+        return {
+            "status": "committed",
+            "repo": meta["repo"],
+            "path": meta["path"],
+            "commit_sha": result.get(
+                "commit", {}
+            ).get("sha"),
+            "html_url": result.get(
+                "commit", {}
+            ).get("html_url"),
+        }
 
-            return {
-                "status": "generated",
-                "language": data.language,
-                "answer": answer,
-                "file_written": False,
-                "repository_changed": False,
-            }
-
-        except Exception:
-            raise HTTPException(
-                502,
-                "Code generation failed. Check Nova's "
-                "model configuration and server logs.",
-            )
-
-    return programming_router
-    
