@@ -764,15 +764,13 @@ def create_programming_router(
             **result,
         }
 
+    
     # --------------------------------------------------------
     # GITHUB PROPOSAL
     # --------------------------------------------------------
 
     @programming_router.post("/github/proposals")
-        @programming_router.post("/github/proposals")
     def github_proposal(data: GitHubProposalRequest):
-        require_github_config(data.repo)
-
         # Support creating a new file or updating an existing one.
         try:
             existing = github_get_file(
@@ -781,6 +779,7 @@ def create_programming_router(
             old_content = existing["content"]
             expected_exists = True
             current_sha = existing["sha"]
+
         except HTTPException as exc:
             if exc.status_code != 404:
                 raise
@@ -808,6 +807,7 @@ def create_programming_router(
                 else "Update an existing GitHub file; approval is required."
             ),
         )
+        
 
     
     # --------------------------------------------------------
