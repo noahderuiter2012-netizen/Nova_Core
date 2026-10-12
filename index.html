@@ -655,10 +655,14 @@ async function sendMessage() {
         }
 
 
-        addMessage(
+                addMessage(
             data.reply,
             "nova"
         );
+
+        if (data.programming?.proposal) {
+            addProgrammingProposal(data.programming);
+        }
 
 
     } catch (error) {
