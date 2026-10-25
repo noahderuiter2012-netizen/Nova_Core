@@ -109,6 +109,16 @@ class GitHubProposalRequest(BaseModel):
     branch: str = Field(default="main", max_length=200)
 
 
+class GitHubPullRequestProposalRequest(BaseModel):
+    repo: str = Field(min_length=3, max_length=200)
+    path: str = Field(min_length=1, max_length=500)
+    content: str = Field(max_length=MAX_PROPOSAL_SIZE)
+    message: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    body: str = Field(default="", max_length=10000)
+    base_branch: str = Field(default="main", min_length=1, max_length=200)
+
+
 class GenerateRequest(BaseModel):
     task: str = Field(min_length=1, max_length=8000)
     language: str = Field(default="python", max_length=50)
@@ -197,6 +207,31 @@ def file_digest(content: str | None) -> str | None:
     return hashlib.sha256(
         content.encode("utf-8")
     ).hexdigest()
+
+
+def validate_git_branch_name(value: str) -> str:
+    """Validate a branch name before using it in GitHub API paths."""
+
+    branch = value.strip()
+    invalid = (
+        not branch
+        or len(branch) > 200
+        or not re.fullmatch(r"[A-Za-z0-9._/-]+", branch)
+        or branch.startswith("/")
+        or branch.endswith("/")
+        or "//" in branch
+        or ".." in branch
+        or "@{" in branch
+        or any(
+            part.startswith(".")
+            or part.endswith(".")
+            or part.endswith(".lock")
+            for part in branch.split("/")
+        )
+    )
+    if invalid:
+        raise HTTPException(400, "Invalid Git branch name.")
+    return branch
 
 
 def read_text_file(path: Path) -> str:
@@ -924,6 +959,228 @@ def create_programming_router(
             "file_url": result.get(
                 "content", {}
             ).get("html_url"),
+        }
+
+    # --------------------------------------------------------
+    # GITHUB PULL REQUEST PROPOSAL
+    # --------------------------------------------------------
+
+    @programming_router.post("/github/pull-requests/proposals")
+    def github_pull_request_proposal(
+        data: GitHubPullRequestProposalRequest,
+    ):
+        """Prepare a reviewable GitHub change without writing to a branch."""
+
+        require_github_config(data.repo)
+        base_branch = validate_git_branch_name(data.base_branch)
+        path = validate_relative_path(data.path)
+
+        from urllib.parse import quote
+
+        # Verify the base branch exists and capture the commit it points to.
+        base_ref = github_request(
+            "GET",
+            f"/repos/{data.repo}/git/ref/heads/"
+            f"{quote(base_branch, safe='/')}",
+        )
+        base_sha = base_ref.get("object", {}).get("sha")
+        if not base_sha:
+            raise HTTPException(
+                502, "GitHub did not return the base branch commit."
+            )
+
+        try:
+            existing = github_get_file(data.repo, path, base_branch)
+            old_content = existing["content"]
+            expected_exists = True
+            current_sha = existing["sha"]
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            old_content = None
+            expected_exists = False
+            current_sha = None
+
+        slug = re.sub(
+            r"[^a-z0-9]+", "-", data.title.lower()
+        ).strip("-")[:36] or "update"
+        feature_branch = (
+            f"nova/{slug}-{secrets.token_hex(3)}"
+        )
+
+        return create_proposal(
+            kind="github_pr",
+            target=f"{data.repo}/{path}",
+            new_content=data.content,
+            old_content=old_content,
+            metadata={
+                "repo": data.repo,
+                "path": path,
+                "base_branch": base_branch,
+                "base_sha": base_sha,
+                "feature_branch": feature_branch,
+                "sha": current_sha,
+                "expected_exists": expected_exists,
+                "message": data.message,
+                "title": data.title,
+                "body": data.body,
+            },
+            reason=(
+                "GitHub pull request proposal. No branch or commit is "
+                "created until this proposal is explicitly approved."
+            ),
+        )
+
+    # --------------------------------------------------------
+    # APPROVE GITHUB PULL REQUEST PROPOSAL
+    # --------------------------------------------------------
+
+    @programming_router.post(
+        "/github/pull-requests/proposals/{proposal_id}/approve"
+    )
+    def approve_github_pull_request_proposal(proposal_id: str):
+        proposal = get_proposal(proposal_id, "github_pr")
+        meta = proposal["metadata"]
+        repo = meta["repo"]
+        path = meta["path"]
+        base_branch = validate_git_branch_name(meta["base_branch"])
+        feature_branch = validate_git_branch_name(meta["feature_branch"])
+
+        require_github_config(repo)
+
+        # Fail closed if the target file changed since the proposal was made.
+        expected_exists = meta["expected_exists"]
+        if expected_exists:
+            current = github_get_file(repo, path, base_branch)
+            if current["sha"] != meta["sha"]:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "The base file changed since the proposal was created. "
+                    "Create a new proposal.",
+                )
+        else:
+            try:
+                github_get_file(repo, path, base_branch)
+            except HTTPException as exc:
+                if exc.status_code != 404:
+                    raise
+            else:
+                del PENDING_PROPOSALS[proposal_id]
+                raise HTTPException(
+                    409,
+                    "A file with this path now exists on the base branch. "
+                    "Create a new proposal.",
+                )
+
+        from urllib.parse import quote
+
+        # Always start the feature branch from the current base branch tip.
+        base_ref = github_request(
+            "GET",
+            f"/repos/{repo}/git/ref/heads/"
+            f"{quote(base_branch, safe='/')}",
+        )
+        base_sha = base_ref.get("object", {}).get("sha")
+        if not base_sha:
+            raise HTTPException(
+                502, "GitHub did not return the base branch commit."
+            )
+
+        # Reuse the proposal's branch if a previous approval attempt created
+        # it but failed before opening the pull request.
+        try:
+            github_request(
+                "GET",
+                f"/repos/{repo}/git/ref/heads/"
+                f"{quote(feature_branch, safe='/')}",
+            )
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            github_request(
+                "POST",
+                f"/repos/{repo}/git/refs",
+                {
+                    "ref": f"refs/heads/{feature_branch}",
+                    "sha": base_sha,
+                },
+            )
+
+        # Verify the new branch contains the expected starting version. This
+        # also prevents accidentally overwriting a different branch's file.
+        try:
+            branch_file = github_get_file(repo, path, feature_branch)
+        except HTTPException as exc:
+            if exc.status_code != 404:
+                raise
+            branch_file = None
+
+        if branch_file and branch_file["content"] == proposal["content"]:
+            # A previous attempt may have committed the content but failed
+            # while opening the PR. Reuse that commit rather than duplicate it.
+            commit_url = None
+            commit_sha = None
+        else:
+            if expected_exists:
+                if not branch_file or branch_file["sha"] != meta["sha"]:
+                    raise HTTPException(
+                        409,
+                        "The feature branch does not contain the expected "
+                        "starting file. No file was overwritten.",
+                    )
+            elif branch_file is not None:
+                raise HTTPException(
+                    409,
+                    "The new-file path already exists on the feature branch.",
+                )
+
+            import base64
+
+            body = {
+                "message": meta["message"],
+                "content": base64.b64encode(
+                    proposal["content"].encode("utf-8")
+                ).decode("ascii"),
+                "branch": feature_branch,
+            }
+            if branch_file:
+                body["sha"] = branch_file["sha"]
+
+            result = github_request(
+                "PUT",
+                f"/repos/{repo}/contents/{quote(path, safe='/')}",
+                body,
+            )
+            commit = result.get("commit", {})
+            commit_url = commit.get("html_url")
+            commit_sha = commit.get("sha")
+
+        pull_request = github_request(
+            "POST",
+            f"/repos/{repo}/pulls",
+            {
+                "title": meta["title"],
+                "head": feature_branch,
+                "base": base_branch,
+                "body": meta["body"],
+                "draft": True,
+            },
+        )
+
+        del PENDING_PROPOSALS[proposal_id]
+        return {
+            "status": "pull_request_opened",
+            "repo": repo,
+            "base_branch": base_branch,
+            "feature_branch": feature_branch,
+            "commit_sha": commit_sha,
+            "commit_url": commit_url,
+            "pull_request_number": pull_request.get("number"),
+            "pull_request_url": pull_request.get("html_url"),
+            "draft": bool(pull_request.get("draft", True)),
+            "merged": False,
+            "deployed": False,
         }
 
     # --------------------------------------------------------
