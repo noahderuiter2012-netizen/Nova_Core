@@ -63,8 +63,10 @@ class GitHubPullRequestWorkflowTests(unittest.TestCase):
 
     def test_approval_commits_on_feature_branch_and_opens_draft_pr(self):
         def fake_request(method, endpoint, body=None):
-            if method == "GET" and "/git/ref/heads/" in endpoint:
+            if method == "GET" and endpoint.endswith("/heads/main"):
                 return {"object": {"sha": "base-sha"}}
+            if method == "GET" and "/git/ref/heads/nova/" in endpoint:
+                raise agent.HTTPException(404, "Not found")
             if method == "POST" and endpoint.endswith("/git/refs"):
                 return {"ref": body["ref"]}
             if method == "PUT" and "/contents/" in endpoint:
